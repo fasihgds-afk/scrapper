@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scrapper Pro</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <header>
+        <h1>Scrapper Pro</h1>
+        <p class="subtitle">Infinite-scroll extraction</p>
+      </header>
+
+      <section class="settings">
+        <label>
+          API URL
+          <input id="apiBaseUrl" type="text" spellcheck="false" />
+        </label>
+        <label>
+          Site key
+          <input id="siteKey" type="text" spellcheck="false" />
+        </label>
+        <label>
+          Batch size
+          <input id="batchSize" type="number" min="10" max="1000" />
+        </label>
+        <button id="saveSettings" class="secondary" type="button">Save settings</button>
+      </section>
+
+      <section class="controls">
+        <button id="startBtn" type="button">Start</button>
+        <button id="pauseBtn" type="button">Pause</button>
+        <button id="resumeBtn" type="button">Resume</button>
+        <button id="stopBtn" type="button" class="danger">Stop</button>
+      </section>
+
+      <section class="metrics">
+        <div><span>Status</span><strong id="status">idle</strong></div>
+        <div><span>Job</span><strong id="jobId">—</strong></div>
+        <div><span>Local found</span><strong id="localFound">0</strong></div>
+        <div><span>Saved</span><strong id="totalSaved">0</strong></div>
+        <div><span>Duplicates</span><strong id="totalDuplicates">0</strong></div>
+        <div><span>Failed</span><strong id="totalFailed">0</strong></div>
+        <div><span>Queue</span><strong id="queueDepth">0</strong></div>
+        <div><span>Pending batches</span><strong id="pendingBatches">0</strong></div>
+      </section>
+
+      <p id="error" class="error" hidden></p>
+    </main>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

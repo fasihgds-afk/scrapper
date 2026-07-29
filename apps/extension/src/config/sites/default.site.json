@@ -1,0 +1,19 @@
+{
+  "siteKey": "default",
+  "match": ["*://*/*"],
+  "scrollContainer": "body",
+  "rowSelector": "[data-record], tr[data-id], .list-item, .record-row",
+  "fields": {
+    "name": { "selector": ".name, [data-field='name'], td:nth-child(1)", "attr": "text" },
+    "email": { "selector": ".email, [data-field='email'], td:nth-child(2)", "attr": "text" },
+    "upn": { "selector": ".upn, [data-field='upn'], td:nth-child(3)", "attr": "text" },
+    "type": { "selector": ".type, [data-field='type'], td:nth-child(4)", "attr": "text" }
+  },
+  "fingerprint": ["email", "upn"],
+  "scroll": {
+    "stepPx": 800,
+    "delayMs": 400,
+    "idleRounds": 8
+  },
+  "batchSize": 200
+}

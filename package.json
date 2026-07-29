@@ -1,0 +1,24 @@
+{
+  "name": "scrapper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Professional browser extension scraping system for large-scale infinite-scroll data extraction",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @scrapper/shared && npm run build -w @scrapper/api && npm run build -w @scrapper/extension",
+    "build:shared": "npm run build -w @scrapper/shared",
+    "build:api": "npm run build -w @scrapper/api",
+    "build:extension": "npm run build -w @scrapper/extension",
+    "dev:api": "npm run dev -w @scrapper/api",
+    "dev:extension": "npm run dev -w @scrapper/extension",
+    "start:api": "npm run start -w @scrapper/api",
+    "build:render": "npm run build:shared && npm run build:api",
+    "pack:extension": "npm run build:extension"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

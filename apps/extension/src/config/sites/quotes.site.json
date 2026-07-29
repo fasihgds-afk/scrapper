@@ -1,0 +1,19 @@
+{
+  "siteKey": "quotes",
+  "match": ["*://quotes.toscrape.com/*", "http://quotes.toscrape.com/*", "https://quotes.toscrape.com/*"],
+  "scrollContainer": "body",
+  "rowSelector": ".quote",
+  "fields": {
+    "name": { "selector": ".author", "attr": "text" },
+    "email": { "selector": ".text", "attr": "text" },
+    "upn": { "selector": ".tags", "attr": "text" },
+    "type": { "selector": ".author", "attr": "text" }
+  },
+  "fingerprint": ["name", "email"],
+  "scroll": {
+    "stepPx": 900,
+    "delayMs": 600,
+    "idleRounds": 10
+  },
+  "batchSize": 50
+}

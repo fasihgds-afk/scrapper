@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Infinite Scroll Demo — Scrapper Pro</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        background: #f4f6f8;
+        color: #1a1f26;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        background: #1f6feb;
+        color: white;
+        padding: 12px 16px;
+      }
+      #list {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .list-item {
+        display: grid;
+        grid-template-columns: 1.2fr 1.4fr 1fr 0.6fr;
+        gap: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        background: white;
+        border: 1px solid #d8dee6;
+        border-radius: 6px;
+      }
+      .list-item span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #status {
+        padding: 8px 16px;
+        color: #596574;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Demo infinite list</strong>
+      <div>Scroll to load more rows — use Scrapper Pro to extract them</div>
+    </header>
+    <div id="status">Loaded: 0</div>
+    <div id="list"></div>
+    <script>
+      const list = document.getElementById("list");
+      const status = document.getElementById("status");
+      let total = 0;
+      const types = ["user", "admin", "guest", "service"];
+
+      function addBatch(n = 40) {
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < n; i++) {
+          const id = total + i + 1;
+          const row = document.createElement("div");
+          row.className = "list-item";
+          row.setAttribute("data-id", String(id));
+          row.innerHTML = `
+            <span class="name">User ${id}</span>
+            <span class="email">user${id}@example.com</span>
+            <span class="upn">user${id}@corp.local</span>
+            <span class="type">${types[id % types.length]}</span>
+          `;
+          frag.appendChild(row);
+        }
+        list.appendChild(frag);
+        total += n;
+        status.textContent = `Loaded: ${total}`;
+      }
+
+      addBatch(50);
+
+      let loading = false;
+      window.addEventListener("scroll", () => {
+        if (loading) return;
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {
+          loading = true;
+          setTimeout(() => {
+            addBatch(40);
+            loading = false;
+          }, 250);
+        }
+      });
+    </script>
+  </body>
+</html>

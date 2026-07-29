@@ -1,0 +1,21 @@
+# Exported from Render Blueprint — or create the service manually in the dashboard.
+services:
+  - type: web
+    name: scrapper-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build:shared && npm run build:api
+    startCommand: npm run start:api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: API_HOST
+        value: "0.0.0.0"
+      - key: API_CORS_ORIGIN
+        value: "*"
+      - key: INGEST_CONCURRENCY
+        value: "2"
+      - key: MONGODB_URI
+        sync: false

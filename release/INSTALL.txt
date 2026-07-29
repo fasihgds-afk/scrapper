@@ -1,0 +1,15 @@
+Scrapper Pro — install on another laptop
+========================================
+
+1. Unzip this archive to a folder.
+2. Open Chrome → chrome://extensions
+3. Enable Developer mode
+4. Click "Load unpacked"
+5. Select THIS folder (the one with manifest.json)
+
+Then open the extension popup and set:
+  API URL  = your public API address (NOT localhost)
+  Site key = quotes   (for http://quotes.toscrape.com/scroll)
+             or your custom site key
+
+Full guide: docs/remote-laptops.md in the project.
