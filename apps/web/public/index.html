@@ -713,7 +713,7 @@
       <button type="button" class="btn-line" id="refreshBtn">
         <span class="btn-label">Refresh</span>
       </button>
-      <button type="button" class="btn-solid" id="exportBtn">Download CSV</button>
+      <button type="button" class="btn-solid" id="exportBtn">Export</button>
     </div>
 
     <section class="stage" id="stage" aria-label="Records">
@@ -744,8 +744,8 @@
 
   <div class="modal-root" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
     <div class="modal">
-      <h2 id="exportTitle">Download CSV</h2>
-      <p>Choose which rows to export. Sorted A–Z by name.</p>
+      <h2 id="exportTitle">Export contacts</h2>
+      <p>Pick a range, then copy Name + Email or download CSV. Sorted A–Z by name.</p>
       <div class="presets">
         <button type="button" data-from="1" data-to="100">1–100</button>
         <button type="button" data-from="1" data-to="500">1–500</button>
@@ -767,16 +767,19 @@
       <div class="modal-hint" id="exportHint"></div>
       <div class="modal-actions">
         <button type="button" class="btn-line" id="exportCancel">Cancel</button>
+        <button type="button" class="btn-line" id="exportCopy">
+          <span class="btn-label">Copy</span>
+        </button>
         <button type="button" class="btn-solid" id="exportConfirm">
-          <span class="btn-label">Download</span>
+          <span class="btn-label">Download CSV</span>
         </button>
       </div>
     </div>
   </div>
 
   <div class="toast" id="toast" role="status">
-    <span class="spinner" aria-hidden="true"></span>
-    <span id="toastText">Preparing CSV…</span>
+    <span class="spinner" id="toastSpinner" aria-hidden="true"></span>
+    <span id="toastText">Preparing…</span>
   </div>
 
   <script>
@@ -818,11 +821,13 @@
       exportHint: document.getElementById("exportHint"),
       exportCancel: document.getElementById("exportCancel"),
       exportConfirm: document.getElementById("exportConfirm"),
+      exportCopy: document.getElementById("exportCopy"),
       presetAll: document.getElementById("presetAll"),
       progress: document.getElementById("progress"),
       stage: document.getElementById("stage"),
       toast: document.getElementById("toast"),
       toastText: document.getElementById("toastText"),
+      toastSpinner: document.getElementById("toastSpinner"),
     };
 
     function setProgress(on) {
@@ -900,25 +905,92 @@
     function closeExportModal() {
       el.exportModal.classList.remove("open");
       setButtonLoading(el.exportConfirm, false);
+      setButtonLoading(el.exportCopy, false);
+    }
+
+    function showToast(message, { spinning = true } = {}) {
+      el.toastText.textContent = message;
+      el.toastSpinner.style.display = spinning ? "" : "none";
+      el.toast.classList.add("show");
+    }
+
+    function hideToast(delayMs = 0) {
+      window.setTimeout(() => {
+        el.toast.classList.remove("show");
+        el.toastSpinner.style.display = "";
+      }, delayMs);
+    }
+
+    function getExportRange() {
+      if (!updateExportHint()) return null;
+      const from = Math.max(1, Math.floor(Number(el.exportFrom.value)));
+      const to = Math.max(from, Math.floor(Number(el.exportTo.value)));
+      return { from, to };
+    }
+
+    function csvToCopyText(csv) {
+      return csv
+        .replace(/^\uFEFF/, "")
+        .trim()
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map((line) => {
+          const match = line.match(/^"(.*)"\s*,\s*"(.*)"$/);
+          if (match) {
+            return `${match[1].replace(/""/g, '"')}\t${match[2].replace(/""/g, '"')}`;
+          }
+          return line;
+        })
+        .join("\n");
     }
 
     function startCsvDownload() {
-      if (!updateExportHint()) return;
-      const from = Math.max(1, Math.floor(Number(el.exportFrom.value)));
-      const to = Math.max(from, Math.floor(Number(el.exportTo.value)));
+      const range = getExportRange();
+      if (!range) return;
       setButtonLoading(el.exportConfirm, true);
-      el.toastText.textContent = `Preparing CSV · ${from.toLocaleString()}–${to.toLocaleString()}`;
-      el.toast.classList.add("show");
+      showToast(`Preparing CSV · ${range.from.toLocaleString()}–${range.to.toLocaleString()}`);
       setProgress(true);
 
       window.setTimeout(() => {
         closeExportModal();
-        window.location.href = `/records/export.csv${queryString({ from, to })}`;
-        window.setTimeout(() => {
-          el.toast.classList.remove("show");
-          setProgress(false);
-        }, 1600);
+        window.location.href = `/records/export.csv${queryString(range)}`;
+        hideToast(1600);
+        setProgress(false);
       }, 280);
+    }
+
+    async function copyExportRange() {
+      const range = getExportRange();
+      if (!range) return;
+
+      setButtonLoading(el.exportCopy, true);
+      showToast(`Copying · ${range.from.toLocaleString()}–${range.to.toLocaleString()}`);
+      setProgress(true);
+
+      try {
+        const res = await fetch(`/records/export.csv${queryString(range)}`);
+        if (!res.ok) throw new Error("Failed to load contacts for copy");
+        const csv = await res.text();
+        const text = csvToCopyText(csv);
+        const rows = Math.max(0, text.split("\n").length - 1);
+
+        if (!navigator.clipboard || !navigator.clipboard.writeText) {
+          throw new Error("Clipboard not available in this browser");
+        }
+        await navigator.clipboard.writeText(text);
+
+        closeExportModal();
+        showToast(`Copied ${rows.toLocaleString()} contacts (Name + Email)`, {
+          spinning: false,
+        });
+        hideToast(2200);
+      } catch (error) {
+        showToast(error.message || "Copy failed", { spinning: false });
+        hideToast(2400);
+        setButtonLoading(el.exportCopy, false);
+      } finally {
+        setProgress(false);
+      }
     }
 
     function escapeHtml(value) {
@@ -1141,6 +1213,13 @@
     el.exportBtn.addEventListener("click", openExportModal);
     el.exportCancel.addEventListener("click", closeExportModal);
     el.exportConfirm.addEventListener("click", startCsvDownload);
+    el.exportCopy.addEventListener("click", () => {
+      copyExportRange().catch((err) => {
+        showToast(err.message || "Copy failed", { spinning: false });
+        hideToast(2400);
+        setButtonLoading(el.exportCopy, false);
+      });
+    });
     el.exportFrom.addEventListener("input", updateExportHint);
     el.exportTo.addEventListener("input", updateExportHint);
 
