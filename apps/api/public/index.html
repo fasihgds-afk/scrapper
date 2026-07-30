@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scrapper Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #101418;
+      --panel: #161b20;
+      --panel-2: #1b2128;
+      --line: #2a323c;
+      --line-2: #232a32;
+      --text: #dce3ea;
+      --text-2: #9aa7b5;
+      --text-3: #6d7a88;
+      --teal: #3f9f90;
+      --teal-2: #4db3a3;
+      --teal-dim: rgba(63, 159, 144, 0.12);
+      --danger: #d17a74;
+      --ok: #5aa882;
+      --font: "Schibsted Grotesk", "Avenir Next", sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      position: relative;
+    }
+
+    /* Indeterminate top progress */
+    .progress {
+      height: 2px;
+      background: transparent;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+
+    .progress.active {
+      opacity: 1;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 35%;
+      background: linear-gradient(90deg, transparent, var(--teal), transparent);
+      transform: translateX(-120%);
+    }
+
+    .progress.active .progress-bar {
+      animation: progressSlide 1.05s ease-in-out infinite;
+    }
+
+    @keyframes progressSlide {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(380%); }
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 20px;
+      height: 52px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 8px;
+      height: 8px;
+      background: var(--teal);
+      flex-shrink: 0;
+      align-self: center;
+    }
+
+    .brand-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+
+    .brand-sub {
+      font-size: 13px;
+      color: var(--text-3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-meta {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-2);
+      flex-shrink: 0;
+    }
+
+    .top-meta b {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live i {
+      width: 6px;
+      height: 6px;
+      background: var(--danger);
+      display: inline-block;
+      position: relative;
+    }
+
+    .live.ok i {
+      background: var(--ok);
+    }
+
+    .live.ok i::after {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border: 1px solid var(--ok);
+      opacity: 0;
+      animation: livePulse 2.2s ease-out infinite;
+    }
+
+    @keyframes livePulse {
+      0% { opacity: 0.55; transform: scale(0.7); }
+      100% { opacity: 0; transform: scale(1.8); }
+    }
+
+    .live-toggle {
+      height: 28px;
+      padding: 0 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--text-3);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-toggle.on {
+      color: var(--teal-2);
+      border-color: rgba(63, 159, 144, 0.45);
+      background: var(--teal-dim);
+    }
+
+    .live-toggle .dot {
+      width: 6px;
+      height: 6px;
+      background: currentColor;
+      position: relative;
+    }
+
+    .live-toggle.on .dot::after {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border: 1px solid currentColor;
+      opacity: 0;
+      animation: livePulse 2s ease-out infinite;
+    }
+
+    .count-bump {
+      animation: countBump 0.45s ease;
+    }
+
+    @keyframes countBump {
+      0% { color: var(--teal-2); }
+      100% { color: var(--text); }
+    }
+
+    .updated-flash {
+      outline: 1px solid rgba(63, 159, 144, 0.35);
+      outline-offset: -1px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--bg);
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1 1 280px;
+      min-width: 180px;
+    }
+
+    .search-wrap svg {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      color: var(--text-3);
+      pointer-events: none;
+    }
+
+    input[type="search"],
+    select,
+    button {
+      font-family: var(--font);
+      font-size: 13px;
+    }
+
+    input[type="search"],
+    select {
+      width: 100%;
+      height: 36px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 0 12px;
+      outline: none;
+      border-radius: 2px;
+      transition: border-color 0.12s ease, background 0.12s ease;
+    }
+
+    input[type="search"] { padding-left: 34px; }
+    input[type="search"]::placeholder { color: var(--text-3); }
+
+    input[type="search"]:focus,
+    select:focus {
+      border-color: var(--teal);
+      background: var(--panel-2);
+    }
+
+    select {
+      width: auto;
+      min-width: 140px;
+      cursor: pointer;
+      appearance: none;
+      padding-right: 28px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236d7a88' stroke-width='1.4' stroke-linecap='square'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+
+    .spacer { flex: 0 0 4px; }
+
+    button {
+      height: 36px;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      cursor: pointer;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, opacity 0.12s ease;
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .btn-solid {
+      background: var(--teal);
+      color: #0a1412;
+    }
+
+    .btn-solid:hover:not(:disabled) { background: var(--teal-2); }
+
+    .btn-line {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    .btn-line:hover:not(:disabled) {
+      border-color: var(--text-2);
+      background: var(--panel);
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .stage {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      background: var(--bg);
+      position: relative;
+    }
+
+    .stage.is-loading .table-scroll {
+      pointer-events: none;
+    }
+
+    .table-scroll {
+      overflow: auto;
+      min-height: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    col.name { width: 42%; }
+    col.email { width: 58%; }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      text-align: left;
+      padding: 10px 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--line);
+    }
+
+    tbody td {
+      padding: 11px 20px;
+      border-bottom: 1px solid var(--line-2);
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    tbody tr.data-row {
+      animation: rowFade 0.28s ease both;
+    }
+
+    tbody tr.data-row:nth-child(1) { animation-delay: 0.01s; }
+    tbody tr.data-row:nth-child(2) { animation-delay: 0.03s; }
+    tbody tr.data-row:nth-child(3) { animation-delay: 0.05s; }
+    tbody tr.data-row:nth-child(4) { animation-delay: 0.07s; }
+    tbody tr.data-row:nth-child(5) { animation-delay: 0.09s; }
+    tbody tr.data-row:nth-child(6) { animation-delay: 0.11s; }
+    tbody tr.data-row:nth-child(7) { animation-delay: 0.13s; }
+    tbody tr.data-row:nth-child(8) { animation-delay: 0.15s; }
+
+    @keyframes rowFade {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    tbody tr:hover td { background: var(--teal-dim); }
+    tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.012); }
+    tbody tr:nth-child(even):hover td { background: var(--teal-dim); }
+
+    .name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .email {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--text-2);
+    }
+
+    /* Skeleton loaders */
+    .skel {
+      display: block;
+      height: 12px;
+      border-radius: 2px;
+      background: linear-gradient(
+        90deg,
+        #1c242c 0%,
+        #273039 45%,
+        #1c242c 90%
+      );
+      background-size: 220% 100%;
+      animation: shimmer 1.25s ease-in-out infinite;
+    }
+
+    .skel.name-skel { width: 58%; height: 13px; }
+    .skel.email-skel { width: 72%; height: 11px; }
+
+    tr.skel-row td { pointer-events: none; }
+    tr.skel-row:hover td { background: transparent !important; }
+
+    @keyframes shimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    .empty-state {
+      padding: 72px 24px;
+      text-align: center;
+      color: var(--text-3);
+      font-size: 14px;
+    }
+
+    .empty-state .boot {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .boot-ring {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--line);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .empty-state.error { color: var(--danger); }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 10px 20px;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+      min-height: 48px;
+    }
+
+    .range {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-3);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 16px;
+    }
+
+    .range .mini-spin {
+      width: 10px;
+      height: 10px;
+      border: 1.5px solid var(--text-3);
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .pager { display: flex; gap: 6px; }
+    .pager button { min-width: 88px; }
+
+    /* Modal */
+    .modal-root {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(8, 10, 12, 0.72);
+      opacity: 0;
+    }
+
+    .modal-root.open {
+      display: flex;
+      animation: fadeOverlay 0.18s ease forwards;
+    }
+
+    @keyframes fadeOverlay {
+      to { opacity: 1; }
+    }
+
+    .modal {
+      width: min(420px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 20px;
+      transform: translateY(8px) scale(0.98);
+      animation: modalIn 0.22s ease forwards;
+    }
+
+    @keyframes modalIn {
+      to { transform: translateY(0) scale(1); }
+    }
+
+    .modal h2 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+    }
+
+    .modal p {
+      font-size: 13px;
+      color: var(--text-3);
+      margin-bottom: 16px;
+    }
+
+    .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .presets button {
+      height: 30px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg);
+      color: var(--text-2);
+      border: 1px solid var(--line);
+    }
+
+    .presets button:hover {
+      color: var(--text);
+      border-color: var(--text-3);
+    }
+
+    .range-fields {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 8px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 6px;
+    }
+
+    .field input[type="number"] {
+      width: 100%;
+      height: 36px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 0 12px;
+      outline: none;
+      border-radius: 2px;
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    .field input[type="number"]:focus { border-color: var(--teal); }
+
+    .range-sep {
+      padding-bottom: 10px;
+      color: var(--text-3);
+      font-size: 13px;
+    }
+
+    .modal-hint {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+      margin-bottom: 16px;
+      min-height: 16px;
+    }
+
+    .modal-hint.error { color: var(--danger); }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Export preparing toast */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%) translateY(12px);
+      z-index: 60;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 13px;
+      opacity: 0;
+    }
+
+    .toast.show {
+      display: inline-flex;
+      animation: toastIn 0.22s ease forwards;
+    }
+
+    @keyframes toastIn {
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    @media (max-width: 720px) {
+      .brand-sub { display: none; }
+      .top-meta { gap: 12px; }
+      .controls { padding: 10px 14px; }
+      thead th, tbody td { padding-left: 14px; padding-right: 14px; }
+      .footer { padding: 10px 14px; }
+      select { flex: 1 1 calc(50% - 4px); min-width: 0; }
+      .btn-line, .btn-solid { flex: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="progress" id="progress" aria-hidden="true">
+      <div class="progress-bar"></div>
+    </div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Scrapper Pro</span>
+        <span class="brand-sub">Live contact archive</span>
+      </div>
+      <div class="top-meta">
+        <button type="button" class="live-toggle on" id="liveToggle" title="Auto-refresh while scraping" aria-pressed="true">
+          <span class="dot" aria-hidden="true"></span>
+          Live
+        </button>
+        <span class="live" id="apiLive"><i></i><span id="apiStatus">…</span></span>
+        <span><b id="totalCount">—</b> records</span>
+        <span><b id="jobCount">—</b> jobs</span>
+      </div>
+    </header>
+
+    <div class="controls">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.25" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M16 16.5 20 20.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/>
+        </svg>
+        <input type="search" id="search" placeholder="Filter by name or email" autocomplete="off" />
+      </div>
+      <select id="jobFilter" aria-label="Job">
+        <option value="">All jobs</option>
+      </select>
+      <span class="spacer"></span>
+      <button type="button" class="btn-line" id="refreshBtn">
+        <span class="btn-label">Refresh</span>
+      </button>
+      <button type="button" class="btn-solid" id="exportBtn">Download CSV</button>
+    </div>
+
+    <section class="stage" id="stage" aria-label="Records">
+      <div class="table-scroll">
+        <table>
+          <colgroup>
+            <col class="name" />
+            <col class="email" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <footer class="footer">
+        <div class="range" id="pagerInfo">—</div>
+        <div class="pager">
+          <button type="button" class="btn-line" id="prevBtn" disabled>Prev</button>
+          <button type="button" class="btn-line" id="nextBtn" disabled>Next</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <div class="modal-root" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <div class="modal">
+      <h2 id="exportTitle">Download CSV</h2>
+      <p>Choose which rows to export. Sorted A–Z by name.</p>
+      <div class="presets">
+        <button type="button" data-from="1" data-to="100">1–100</button>
+        <button type="button" data-from="1" data-to="500">1–500</button>
+        <button type="button" data-from="1" data-to="1000">1–1,000</button>
+        <button type="button" data-from="501" data-to="1000">501–1,000</button>
+        <button type="button" id="presetAll">All</button>
+      </div>
+      <div class="range-fields">
+        <div class="field">
+          <label for="exportFrom">From</label>
+          <input type="number" id="exportFrom" min="1" step="1" value="1" />
+        </div>
+        <div class="range-sep">to</div>
+        <div class="field">
+          <label for="exportTo">To</label>
+          <input type="number" id="exportTo" min="1" step="1" value="100" />
+        </div>
+      </div>
+      <div class="modal-hint" id="exportHint"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-line" id="exportCancel">Cancel</button>
+        <button type="button" class="btn-solid" id="exportConfirm">
+          <span class="btn-label">Download</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status">
+    <span class="spinner" aria-hidden="true"></span>
+    <span id="toastText">Preparing CSV…</span>
+  </div>
+
+  <script>
+    const LIVE_MS = 2500;
+
+    const state = {
+      page: 1,
+      limit: 50,
+      total: 0,
+      totalPages: 1,
+      q: "",
+      jobId: "",
+      jobs: {},
+      debounce: null,
+      loading: false,
+      live: true,
+      pollTimer: null,
+      signature: "",
+      jobsSignature: "",
+    };
+
+    const el = {
+      tbody: document.getElementById("tbody"),
+      search: document.getElementById("search"),
+      jobFilter: document.getElementById("jobFilter"),
+      refreshBtn: document.getElementById("refreshBtn"),
+      exportBtn: document.getElementById("exportBtn"),
+      prevBtn: document.getElementById("prevBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      pagerInfo: document.getElementById("pagerInfo"),
+      totalCount: document.getElementById("totalCount"),
+      jobCount: document.getElementById("jobCount"),
+      apiStatus: document.getElementById("apiStatus"),
+      apiLive: document.getElementById("apiLive"),
+      liveToggle: document.getElementById("liveToggle"),
+      exportModal: document.getElementById("exportModal"),
+      exportFrom: document.getElementById("exportFrom"),
+      exportTo: document.getElementById("exportTo"),
+      exportHint: document.getElementById("exportHint"),
+      exportCancel: document.getElementById("exportCancel"),
+      exportConfirm: document.getElementById("exportConfirm"),
+      presetAll: document.getElementById("presetAll"),
+      progress: document.getElementById("progress"),
+      stage: document.getElementById("stage"),
+      toast: document.getElementById("toast"),
+      toastText: document.getElementById("toastText"),
+    };
+
+    function setProgress(on) {
+      el.progress.classList.toggle("active", on);
+    }
+
+    function setButtonLoading(button, on, label) {
+      const text = label || button.dataset.label || button.textContent.trim();
+      if (!button.dataset.label) button.dataset.label = text;
+      if (on) {
+        button.disabled = true;
+        button.innerHTML = `<span class="spinner" aria-hidden="true"></span><span class="btn-label">${button.dataset.label}</span>`;
+      } else {
+        button.disabled = false;
+        button.innerHTML = `<span class="btn-label">${button.dataset.label}</span>`;
+      }
+    }
+
+    function showSkeleton(rows = 10) {
+      el.stage.classList.add("is-loading");
+      setProgress(true);
+      el.pagerInfo.innerHTML = `<span class="mini-spin" aria-hidden="true"></span> Loading`;
+      el.tbody.innerHTML = Array.from({ length: rows }, () => `
+        <tr class="skel-row">
+          <td><span class="skel name-skel"></span></td>
+          <td><span class="skel email-skel"></span></td>
+        </tr>
+      `).join("");
+    }
+
+    function showBootLoader() {
+      el.tbody.innerHTML = `
+        <tr>
+          <td colspan="2" class="empty-state">
+            <div class="boot">
+              <div class="boot-ring" aria-hidden="true"></div>
+              <div>Loading contacts…</div>
+            </div>
+          </td>
+        </tr>`;
+      setProgress(true);
+      el.pagerInfo.innerHTML = `<span class="mini-spin" aria-hidden="true"></span> Loading`;
+    }
+
+    function updateExportHint() {
+      const from = Number(el.exportFrom.value);
+      const to = Number(el.exportTo.value);
+      const total = state.total || 0;
+      if (!Number.isFinite(from) || !Number.isFinite(to) || from < 1 || to < from) {
+        el.exportHint.textContent = "Enter a valid range (From ≤ To).";
+        el.exportHint.classList.add("error");
+        return false;
+      }
+      const count = to - from + 1;
+      const capped = total > 0 ? Math.min(to, total) : to;
+      const actual = total > 0 ? Math.max(0, capped - from + 1) : count;
+      el.exportHint.classList.remove("error");
+      el.exportHint.textContent =
+        total > 0
+          ? `Will export ~${actual.toLocaleString()} of ${total.toLocaleString()} records`
+          : `Will export rows ${from.toLocaleString()}–${to.toLocaleString()}`;
+      return true;
+    }
+
+    function openExportModal() {
+      const total = state.total || 0;
+      el.exportFrom.value = "1";
+      el.exportTo.value = String(total > 0 ? Math.min(100, total) : 100);
+      updateExportHint();
+      el.exportModal.classList.add("open");
+      el.exportFrom.focus();
+      el.exportFrom.select();
+    }
+
+    function closeExportModal() {
+      el.exportModal.classList.remove("open");
+      setButtonLoading(el.exportConfirm, false);
+    }
+
+    function startCsvDownload() {
+      if (!updateExportHint()) return;
+      const from = Math.max(1, Math.floor(Number(el.exportFrom.value)));
+      const to = Math.max(from, Math.floor(Number(el.exportTo.value)));
+      setButtonLoading(el.exportConfirm, true);
+      el.toastText.textContent = `Preparing CSV · ${from.toLocaleString()}–${to.toLocaleString()}`;
+      el.toast.classList.add("show");
+      setProgress(true);
+
+      window.setTimeout(() => {
+        closeExportModal();
+        window.location.href = `/records/export.csv${queryString({ from, to })}`;
+        window.setTimeout(() => {
+          el.toast.classList.remove("show");
+          setProgress(false);
+        }, 1600);
+      }, 280);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function queryString(extra = {}) {
+      const params = new URLSearchParams();
+      if (state.q) params.set("q", state.q);
+      if (state.jobId) params.set("jobId", state.jobId);
+      for (const [k, v] of Object.entries(extra)) {
+        if (v !== undefined && v !== null && v !== "") params.set(k, String(v));
+      }
+      const s = params.toString();
+      return s ? `?${s}` : "";
+    }
+
+    async function checkHealth() {
+      try {
+        const res = await fetch("/health");
+        const data = await res.json();
+        const ok = res.ok && data.db;
+        el.apiStatus.textContent = ok ? "online" : "db down";
+        el.apiLive.classList.toggle("ok", ok);
+      } catch {
+        el.apiStatus.textContent = "offline";
+        el.apiLive.classList.remove("ok");
+      }
+    }
+
+    async function loadJobs({ silent = false } = {}) {
+      const res = await fetch("/jobs?limit=200");
+      if (!res.ok) throw new Error("Failed to load jobs");
+      const jobs = await res.json();
+      const signature = jobs
+        .map((j) => `${j.jobId}:${j.totalSaved}:${j.status}`)
+        .join("|");
+
+      if (silent && signature === state.jobsSignature) {
+        el.jobCount.textContent = String(jobs.length);
+        return;
+      }
+
+      state.jobsSignature = signature;
+      state.jobs = {};
+      const previous = state.jobId;
+      el.jobFilter.innerHTML = '<option value="">All jobs</option>';
+      for (const job of jobs) {
+        state.jobs[job.jobId] = job;
+        const opt = document.createElement("option");
+        opt.value = job.jobId;
+        opt.textContent = `${job.name} (${job.totalSaved ?? 0})`;
+        if (job.jobId === previous) opt.selected = true;
+        el.jobFilter.appendChild(opt);
+      }
+      el.jobCount.textContent = String(jobs.length);
+    }
+
+    function renderRecords(data, { animate = true } = {}) {
+      const prevTotal = state.total;
+      state.total = data.total;
+      state.totalPages = data.totalPages;
+      state.page = data.page;
+
+      if (data.total !== prevTotal) {
+        el.totalCount.textContent = data.total.toLocaleString();
+        el.totalCount.classList.remove("count-bump");
+        void el.totalCount.offsetWidth;
+        el.totalCount.classList.add("count-bump");
+      } else {
+        el.totalCount.textContent = data.total.toLocaleString();
+      }
+
+      const signature = `${data.total}|${data.page}|${data.items
+        .map((r) => r.id)
+        .join(",")}`;
+      if (signature === state.signature) {
+        const from = data.total === 0 ? 0 : (data.page - 1) * data.limit + 1;
+        const to = Math.min(data.page * data.limit, data.total);
+        el.pagerInfo.textContent = `${from.toLocaleString()}–${to.toLocaleString()} / ${data.total.toLocaleString()}`;
+        el.prevBtn.disabled = data.page <= 1;
+        el.nextBtn.disabled = data.page >= data.totalPages;
+        return false;
+      }
+      state.signature = signature;
+
+      if (!data.items.length) {
+        el.tbody.innerHTML =
+          '<tr><td colspan="2" class="empty-state">No contacts match. Scrape from the extension, then refresh.</td></tr>';
+      } else {
+        const rowClass = animate ? "data-row" : "data-row";
+        el.tbody.innerHTML = data.items
+          .map((row) => `<tr class="${rowClass}">
+              <td class="name" title="${escapeHtml(row.name)}">${escapeHtml(row.name) || "—"}</td>
+              <td class="email" title="${escapeHtml(row.email)}">${escapeHtml(row.email) || "—"}</td>
+            </tr>`)
+          .join("");
+      }
+
+      const from = data.total === 0 ? 0 : (data.page - 1) * data.limit + 1;
+      const to = Math.min(data.page * data.limit, data.total);
+      el.pagerInfo.textContent = `${from.toLocaleString()}–${to.toLocaleString()} / ${data.total.toLocaleString()}`;
+      el.prevBtn.disabled = data.page <= 1;
+      el.nextBtn.disabled = data.page >= data.totalPages;
+      return true;
+    }
+
+    async function loadRecords({ soft = true, silent = false } = {}) {
+      if (state.loading && silent) return;
+      state.loading = true;
+
+      if (!silent) {
+        if (soft) showSkeleton(12);
+        else showBootLoader();
+        el.prevBtn.disabled = true;
+        el.nextBtn.disabled = true;
+      }
+
+      try {
+        const res = await fetch(
+          `/records${queryString({ page: state.page, limit: state.limit })}`,
+        );
+        if (!res.ok) throw new Error("Failed to load records");
+        const data = await res.json();
+        const changed = renderRecords(data, { animate: !silent });
+        if (silent && changed) {
+          el.stage.classList.add("updated-flash");
+          window.setTimeout(() => el.stage.classList.remove("updated-flash"), 500);
+        }
+      } finally {
+        state.loading = false;
+        if (!silent) {
+          el.stage.classList.remove("is-loading");
+          setProgress(false);
+        }
+      }
+    }
+
+    async function refresh() {
+      setButtonLoading(el.refreshBtn, true);
+      setProgress(true);
+      try {
+        await checkHealth();
+        await loadJobs();
+        await loadRecords({ soft: true });
+      } finally {
+        setButtonLoading(el.refreshBtn, false);
+      }
+    }
+
+    async function liveTick() {
+      if (!state.live) return;
+      if (document.hidden) return;
+      if (el.exportModal.classList.contains("open")) return;
+      if (state.loading) return;
+      try {
+        await checkHealth();
+        await loadJobs({ silent: true });
+        await loadRecords({ silent: true });
+      } catch {
+        // Keep last good view; health indicator will show offline
+      }
+    }
+
+    function startLive() {
+      stopLive();
+      state.pollTimer = window.setInterval(() => {
+        void liveTick();
+      }, LIVE_MS);
+    }
+
+    function stopLive() {
+      if (state.pollTimer) {
+        clearInterval(state.pollTimer);
+        state.pollTimer = null;
+      }
+    }
+
+    function setLive(on) {
+      state.live = on;
+      el.liveToggle.classList.toggle("on", on);
+      el.liveToggle.setAttribute("aria-pressed", on ? "true" : "false");
+      if (on) {
+        startLive();
+        void liveTick();
+      } else {
+        stopLive();
+      }
+    }
+
+    el.search.addEventListener("input", () => {
+      clearTimeout(state.debounce);
+      state.debounce = setTimeout(() => {
+        state.q = el.search.value.trim();
+        state.page = 1;
+        loadRecords().catch(showError);
+      }, 280);
+    });
+
+    el.jobFilter.addEventListener("change", () => {
+      state.jobId = el.jobFilter.value;
+      state.page = 1;
+      loadRecords().catch(showError);
+    });
+
+    el.refreshBtn.addEventListener("click", () => refresh().catch(showError));
+
+    el.liveToggle.addEventListener("click", () => {
+      setLive(!state.live);
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && state.live) void liveTick();
+    });
+
+    el.exportBtn.addEventListener("click", openExportModal);
+    el.exportCancel.addEventListener("click", closeExportModal);
+    el.exportConfirm.addEventListener("click", startCsvDownload);
+    el.exportFrom.addEventListener("input", updateExportHint);
+    el.exportTo.addEventListener("input", updateExportHint);
+
+    el.exportModal.querySelectorAll(".presets button[data-from]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        el.exportFrom.value = btn.getAttribute("data-from");
+        el.exportTo.value = btn.getAttribute("data-to");
+        updateExportHint();
+      });
+    });
+
+    el.presetAll.addEventListener("click", () => {
+      el.exportFrom.value = "1";
+      el.exportTo.value = String(Math.max(1, state.total || 1));
+      updateExportHint();
+    });
+
+    el.exportModal.addEventListener("click", (e) => {
+      if (e.target === el.exportModal) closeExportModal();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (!el.exportModal.classList.contains("open")) return;
+      if (e.key === "Escape") closeExportModal();
+      if (e.key === "Enter") startCsvDownload();
+    });
+
+    el.prevBtn.addEventListener("click", () => {
+      if (state.page > 1 && !state.loading) {
+        state.page -= 1;
+        loadRecords().catch(showError);
+      }
+    });
+
+    el.nextBtn.addEventListener("click", () => {
+      if (state.page < state.totalPages && !state.loading) {
+        state.page += 1;
+        loadRecords().catch(showError);
+      }
+    });
+
+    function showError(err) {
+      setProgress(false);
+      el.stage.classList.remove("is-loading");
+      setButtonLoading(el.refreshBtn, false);
+      el.pagerInfo.textContent = "Error";
+      el.tbody.innerHTML = `<tr><td colspan="2" class="empty-state error">${escapeHtml(err.message || String(err))}</td></tr>`;
+    }
+
+    showBootLoader();
+    refresh()
+      .then(() => setLive(true))
+      .catch(showError);
+  </script>
+</body>
+</html>

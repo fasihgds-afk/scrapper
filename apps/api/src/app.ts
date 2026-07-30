@@ -5,6 +5,8 @@ import { config } from "./config.js";
 import { jobRoutes } from "./routes/jobs.js";
 import { batchRoutes } from "./routes/batches.js";
 import { healthRoutes } from "./routes/health.js";
+import { recordRoutes } from "./routes/records.js";
+import { uiRoutes } from "./routes/ui.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -32,6 +34,8 @@ export async function buildApp() {
   await app.register(healthRoutes);
   await app.register(jobRoutes);
   await app.register(batchRoutes);
+  await app.register(recordRoutes);
+  await app.register(uiRoutes);
 
   return { app };
 }

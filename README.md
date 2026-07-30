@@ -45,6 +45,10 @@ npm.cmd run dev:api
 
 Health: [http://localhost:3000/health](http://localhost:3000/health) — expect `"db": true`.
 
+Data browser (local): [http://localhost:3000/](http://localhost:3000/)
+
+**Share with team (public):** [https://scrapper-api-0i33.onrender.com/](https://scrapper-api-0i33.onrender.com/) — live records view + CSV export. First load after idle may take ~30–60s on the free plan.
+
 ### 4. Load extension
 
 1. Open `chrome://extensions`
@@ -64,6 +68,7 @@ Open `http://localhost:4173/infinite-scroll-demo.html`.
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/` | Data browser UI |
 | GET | `/health` | Mongo readiness |
 | POST | `/jobs` | Create + start job |
 | GET | `/jobs` | List jobs |
@@ -71,6 +76,8 @@ Open `http://localhost:4173/infinite-scroll-demo.html`.
 | GET | `/jobs/:id/progress` | Progress + queue depth |
 | PATCH | `/jobs/:id` | Update status/checkpoint |
 | POST | `/jobs/:id/batches` | Accept scraped batch |
+| GET | `/records` | Paginated records (`jobId`, `q`, `page`, `limit`) |
+| GET | `/records/export.csv` | Download matching records as CSV |
 
 ## Docs
 
