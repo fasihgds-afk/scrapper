@@ -47,7 +47,7 @@ Health: [http://localhost:3000/health](http://localhost:3000/health) — expect 
 
 Data browser (local): [http://localhost:3000/](http://localhost:3000/)
 
-**Share with team (public):** [https://scrapper-api-0i33.onrender.com/](https://scrapper-api-0i33.onrender.com/) — live records view + CSV export. First load after idle may take ~30–60s on the free plan.
+**Share with team (Vercel):** push `apps/web`, then connect the GitHub repo in Vercel — see [docs/vercel-deploy.md](docs/vercel-deploy.md).
 
 ### 4. Load extension
 
@@ -84,3 +84,5 @@ Open `http://localhost:4173/infinite-scroll-demo.html`.
 - [Architecture](docs/architecture.md)
 - [Data flow](docs/data-flow.md)
 - [Adapter guide](docs/adapter-guide.md)
+- [Render API deploy](docs/render-deploy.md)
+- [Vercel live browser](docs/vercel-deploy.md)

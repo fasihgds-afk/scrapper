@@ -1,0 +1,9 @@
+{
+  "name": "@scrapper/web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Live records browser for Vercel",
+  "dependencies": {
+    "mongoose": "^8.12.1"
+  }
+}
