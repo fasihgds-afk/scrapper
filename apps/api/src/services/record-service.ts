@@ -107,7 +107,7 @@ export async function* iterateRecords(opts: {
     let lastId: Types.ObjectId | null = null;
 
     for (;;) {
-      const pageFilter =
+      const pageFilter: Record<string, unknown> =
         lastId === null
           ? filter
           : {
@@ -130,21 +130,21 @@ export async function* iterateRecords(opts: {
               ],
             };
 
-      const docs = await RecordModel.find(pageFilter)
+      const docs = (await RecordModel.find(pageFilter)
         .sort({ name: 1, email: 1, _id: 1 })
         .limit(batchSize)
-        .lean();
+        .lean()) as Array<RecordDoc & { createdAt?: Date; _id: Types.ObjectId }>;
 
       if (docs.length === 0) break;
 
       for (const doc of docs) {
-        yield serializeRecord(doc as RecordDoc & { createdAt?: Date });
+        yield serializeRecord(doc);
       }
 
       const last = docs[docs.length - 1]!;
       lastName = String(last.name ?? "");
       lastEmail = String(last.email ?? "");
-      lastId = last._id as Types.ObjectId;
+      lastId = last._id;
       if (docs.length < batchSize) break;
     }
     return;

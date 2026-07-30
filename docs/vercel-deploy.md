@@ -2,22 +2,31 @@
 
 Share the records UI with your team via a public Vercel URL. Scraping still uses the API; this app only **reads** MongoDB Atlas.
 
+## Important
+
+**Root Directory must be `apps/web`** — not `apps/api`, not the repo root.
+
+If Vercel runs `tsc` / `@scrapper/api`, the root directory is wrong. Fix it in:
+
+**Project → Settings → General → Root Directory → `apps/web` → Redeploy**
+
 ## 1. Push code
 
-Make sure `apps/web` is on GitHub `main` (already part of this repo).
+Make sure `apps/web` is on GitHub `main`.
 
 ## 2. Import in Vercel
 
 1. Open [https://vercel.com/new](https://vercel.com/new)
-2. **Import** the `fasihgds-afk/scrapper` GitHub repo
-3. Project settings:
+2. **Import** `fasihgds-afk/scrapper`
+3. Click **Edit** next to Root Directory and set:
 
 | Field | Value |
 |-------|--------|
 | Framework Preset | Other |
 | Root Directory | `apps/web` |
-| Build Command | leave empty (or `npm install`) |
+| Build Command | `npm run build` (or leave default) |
 | Output Directory | `public` |
+| Install Command | `npm install` |
 
 4. **Environment Variables** → add:
 
@@ -29,14 +38,10 @@ Make sure `apps/web` is on GitHub `main` (already part of this repo).
 
 ## 3. Share
 
-After deploy, Vercel gives you a URL like:
-
-`https://your-project.vercel.app`
-
-Send that link to teammates. It shows live Name/Email data, search, filters, and CSV range export.
+After deploy you get a URL like `https://your-project.vercel.app` — send that to teammates.
 
 ## Notes
 
-- Atlas Network Access must allow `0.0.0.0/0` (or Vercel cannot reach MongoDB).
-- Every push to `main` that touches `apps/web` can auto-redeploy if you keep Git connected.
-- Do **not** commit `.env` — set secrets only in the Vercel dashboard.
+- Atlas Network Access must allow `0.0.0.0/0`.
+- Do **not** commit `.env` — set `MONGODB_URI` only in the Vercel dashboard.
+- `apps/api` is for Render / local Node — do not use it as the Vercel root.
