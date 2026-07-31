@@ -3,7 +3,7 @@ import type { ExtractedRecord, SiteAdapter, SiteConfig } from "./types";
 function readField(root: Element, selector: string, attr = "text"): string {
   const el = root.querySelector(selector);
   if (!el) return "";
-  if (attr === "text") return (el.textContent ?? "").trim();
+  if (attr === "text") return (el.textContent ?? "").trim().replace(/\s+/g, " ");
   if (attr === "value" && "value" in el) {
     return String((el as HTMLInputElement).value ?? "").trim();
   }
@@ -17,11 +17,54 @@ function buildFingerprint(
   return keys.map((k) => record[k] ?? "").join("|");
 }
 
+function firstMatching(selectors: string): Element | null {
+  for (const raw of selectors.split(",")) {
+    const sel = raw.trim();
+    if (!sel) continue;
+    const el = document.querySelector(sel);
+    if (el) return el;
+  }
+  return null;
+}
+
+/** Prefer the tallest scrollable element among matches (Fluent list pane). */
+function bestScrollable(selectors: string): Element | null {
+  let best: Element | null = null;
+  let bestScore = 0;
+  for (const raw of selectors.split(",")) {
+    const sel = raw.trim();
+    if (!sel) continue;
+    for (const el of Array.from(document.querySelectorAll(sel))) {
+      const style = window.getComputedStyle(el);
+      const canScroll =
+        /(auto|scroll|overlay)/.test(style.overflowY) ||
+        el.scrollHeight > el.clientHeight + 40;
+      if (!canScroll) continue;
+      const score = el.clientHeight * (el.scrollHeight - el.clientHeight);
+      if (score > bestScore) {
+        best = el;
+        bestScore = score;
+      }
+    }
+  }
+  return best;
+}
+
 export class GenericTableAdapter implements SiteAdapter {
   constructor(public config: SiteConfig) {}
 
   getRows(root: ParentNode = document): Element[] {
-    return Array.from(root.querySelectorAll(this.config.rowSelector));
+    return Array.from(root.querySelectorAll(this.config.rowSelector)).filter(
+      (el) => {
+        // Skip header rows in Fluent DetailsList
+        const autoid = el.getAttribute("data-automationid") ?? "";
+        if (autoid === "DetailsHeader") return false;
+        if (el.getAttribute("role") === "row" && el.classList.contains("ms-DetailsHeader")) {
+          return false;
+        }
+        return true;
+      },
+    );
   }
 
   extractRow(el: Element, sourceUrl: string): ExtractedRecord | null {
@@ -49,22 +92,31 @@ export class GenericTableAdapter implements SiteAdapter {
     if (!name && !email && !upn) return null;
 
     const stableId =
+      el.getAttribute("data-item-key") ||
+      el.getAttribute("data-selection-index") ||
       el.getAttribute("data-id") ||
       el.getAttribute("data-record") ||
-      el.getAttribute("id") ||
       "";
 
-    const fingerprint =
-      stableId ||
-      buildFingerprint({ name, email, upn, type }, this.config.fingerprint);
+    // Prefer content fingerprint for virtualized lists (DOM ids get reused)
+    const fingerprint = buildFingerprint(
+      { name, email, upn, type },
+      this.config.fingerprint,
+    );
 
-    return { name, email, upn, type, sourceUrl, fingerprint };
+    return {
+      name,
+      email,
+      upn,
+      type,
+      sourceUrl,
+      fingerprint: fingerprint || stableId,
+    };
   }
 
   getScrollTarget(): Element | Window {
     const sel = this.config.scrollContainer;
     if (!sel || sel === "body" || sel === "window") return window;
-    const el = document.querySelector(sel);
-    return el ?? window;
+    return bestScrollable(sel) ?? firstMatching(sel) ?? window;
   }
 }

@@ -14,6 +14,8 @@ export type PendingBatch = {
     lastFingerprint?: string;
   };
   attempts: number;
+  /** Earliest time (epoch ms) this batch may be retried after a failure */
+  nextRetryAt?: number;
 };
 
 export type ExtensionState = {
@@ -37,8 +39,8 @@ export type ExtensionState = {
 };
 
 const DEFAULT_STATE: ExtensionState = {
-  apiBaseUrl: "http://localhost:3000",
-  siteKey: "default",
+  apiBaseUrl: "https://scrapper-api-0i33.onrender.com",
+  siteKey: "walden",
   batchSize: 200,
   jobId: null,
   status: "idle",
@@ -57,8 +59,8 @@ export async function saveState(patch: Partial<ExtensionState>): Promise<Extensi
   const current = await loadState();
   const next = { ...current, ...patch };
   // Cap fingerprint snapshot to keep storage bounded
-  if (next.seenFingerprints.length > 8000) {
-    next.seenFingerprints = next.seenFingerprints.slice(-8000);
+  if (next.seenFingerprints.length > 10_000) {
+    next.seenFingerprints = next.seenFingerprints.slice(-10_000);
   }
   await chrome.storage.local.set({ scrapperState: next });
   return next;

@@ -68,6 +68,16 @@ function render(state: ExtensionState) {
   els.stopBtn.disabled = !running && !paused;
 }
 
+async function getPageTabId(): Promise<number> {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = tabs[0];
+  if (!tab?.id) throw new Error("Open a website tab first");
+  if (!tab.url || tab.url.startsWith("chrome://") || tab.url.startsWith("chrome-extension://")) {
+    throw new Error("Switch to the website tab (not chrome://extensions), then open Scrapper Pro again");
+  }
+  return tab.id;
+}
+
 async function send(type: string, payload: Record<string, unknown> = {}) {
   const res = await chrome.runtime.sendMessage({ type, ...payload });
   if (!res?.ok) throw new Error(res?.error ?? "Request failed");
@@ -84,8 +94,8 @@ els.saveSettings.addEventListener("click", () => {
     try {
       showError(null);
       await send("POPUP_SAVE_SETTINGS", {
-        apiBaseUrl: els.apiBaseUrl.value.trim(),
-        siteKey: els.siteKey.value.trim() || "default",
+        apiBaseUrl: els.apiBaseUrl.value.trim().replace(/\/$/, ""),
+        siteKey: els.siteKey.value.trim() || "quotes",
         batchSize: Number(els.batchSize.value) || 200,
       });
       await refresh();
@@ -99,15 +109,17 @@ els.startBtn.addEventListener("click", () => {
   void (async () => {
     try {
       showError(null);
+      const tabId = await getPageTabId();
       await send("POPUP_SAVE_SETTINGS", {
-        apiBaseUrl: els.apiBaseUrl.value.trim(),
-        siteKey: els.siteKey.value.trim() || "default",
+        apiBaseUrl: els.apiBaseUrl.value.trim().replace(/\/$/, ""),
+        siteKey: els.siteKey.value.trim() || "quotes",
         batchSize: Number(els.batchSize.value) || 200,
       });
-      await send("POPUP_START");
+      await send("POPUP_START", { tabId });
       await refresh();
     } catch (err) {
       showError(err instanceof Error ? err.message : String(err));
+      await refresh().catch(() => undefined);
     }
   })();
 });
@@ -116,7 +128,8 @@ els.pauseBtn.addEventListener("click", () => {
   void (async () => {
     try {
       showError(null);
-      await send("POPUP_PAUSE");
+      const tabId = await getPageTabId();
+      await send("POPUP_PAUSE", { tabId });
       await refresh();
     } catch (err) {
       showError(err instanceof Error ? err.message : String(err));
@@ -128,7 +141,8 @@ els.resumeBtn.addEventListener("click", () => {
   void (async () => {
     try {
       showError(null);
-      await send("POPUP_RESUME");
+      const tabId = await getPageTabId();
+      await send("POPUP_RESUME", { tabId });
       await refresh();
     } catch (err) {
       showError(err instanceof Error ? err.message : String(err));
@@ -140,7 +154,13 @@ els.stopBtn.addEventListener("click", () => {
   void (async () => {
     try {
       showError(null);
-      await send("POPUP_STOP");
+      let tabId: number | undefined;
+      try {
+        tabId = await getPageTabId();
+      } catch {
+        tabId = undefined;
+      }
+      await send("POPUP_STOP", tabId ? { tabId } : {});
       await refresh();
     } catch (err) {
       showError(err instanceof Error ? err.message : String(err));

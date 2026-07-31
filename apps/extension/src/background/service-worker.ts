@@ -8,8 +8,9 @@ import {
 import type { EngineProgress } from "../content/scraper-engine";
 import type { ExtractedRecord } from "../adapters/types";
 
-const api = new ApiClient("http://localhost:3000");
+const api = new ApiClient("https://scrapper-api-0i33.onrender.com");
 let progressPollTimer: ReturnType<typeof setInterval> | null = null;
+let lastTabId: number | null = null;
 
 async function syncApiBase(): Promise<ExtensionState> {
   const state = await loadState();
@@ -21,15 +22,119 @@ function uuid(): string {
   return crypto.randomUUID();
 }
 
-async function getActiveTabId(): Promise<number | null> {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tabs[0]?.id ?? null;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function sendToContent(message: unknown) {
-  const tabId = await getActiveTabId();
-  if (!tabId) throw new Error("No active tab");
-  return chrome.tabs.sendMessage(tabId, message);
+async function resolveTab(tabId?: number): Promise<chrome.tabs.Tab> {
+  if (typeof tabId === "number") {
+    const tab = await chrome.tabs.get(tabId);
+    lastTabId = tab.id ?? null;
+    return tab;
+  }
+  if (lastTabId != null) {
+    try {
+      const tab = await chrome.tabs.get(lastTabId);
+      return tab;
+    } catch {
+      lastTabId = null;
+    }
+  }
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = tabs[0];
+  if (!tab?.id) throw new Error("No active tab — open a website first");
+  lastTabId = tab.id;
+  return tab;
+}
+
+function assertScrapableUrl(url: string | undefined): void {
+  if (!url) throw new Error("Open a normal website tab first");
+  if (
+    url.startsWith("chrome://") ||
+    url.startsWith("chrome-extension://") ||
+    url.startsWith("edge://") ||
+    url.startsWith("about:") ||
+    url.startsWith("https://chrome.google.com/webstore") ||
+    url.startsWith("https://chromewebstore.google.com")
+  ) {
+    throw new Error(
+      "Cannot scrape this page. Open http://quotes.toscrape.com/scroll , refresh it, then Start.",
+    );
+  }
+}
+
+async function injectContent(tabId: number): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content.js"],
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Could not attach to page (${msg}). Refresh the website tab, keep it focused, then click Start again.`,
+    );
+  }
+}
+
+async function pingContent(tabId: number): Promise<boolean> {
+  try {
+    const res = await chrome.tabs.sendMessage(tabId, { type: "SCRAPER_STATUS" });
+    return Boolean(res);
+  } catch {
+    return false;
+  }
+}
+
+async function ensureContentScript(tabId: number): Promise<void> {
+  if (await pingContent(tabId)) return;
+
+  await injectContent(tabId);
+
+  for (let i = 0; i < 25; i++) {
+    if (await pingContent(tabId)) return;
+    await sleep(120);
+  }
+
+  // Last resort: reload tab and inject again
+  await chrome.tabs.reload(tabId);
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(new Error("Page reload timed out"));
+    }, 15000);
+    const listener = (
+      updatedTabId: number,
+      info: chrome.tabs.TabChangeInfo,
+    ) => {
+      if (updatedTabId === tabId && info.status === "complete") {
+        clearTimeout(timeout);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+
+  await sleep(400);
+  await injectContent(tabId);
+
+  for (let i = 0; i < 25; i++) {
+    if (await pingContent(tabId)) return;
+    await sleep(120);
+  }
+
+  throw new Error(
+    "Still cannot connect to the page. Close other Chrome windows, open http://quotes.toscrape.com/scroll , refresh, then Start.",
+  );
+}
+
+async function sendToContent(message: unknown, tabId?: number) {
+  const tab = await resolveTab(tabId);
+  assertScrapableUrl(tab.url);
+  const id = tab.id!;
+  await ensureContentScript(id);
+  return chrome.tabs.sendMessage(id, message);
 }
 
 async function enqueueAndSendBatch(
@@ -67,11 +172,24 @@ async function enqueueAndSendBatch(
   await flushPendingBatches(jobId);
 }
 
+function batchRetryDelayMs(attempts: number): number {
+  // 1s, 2s, 4s, ... capped at 60s, plus 0–500ms jitter
+  const base = Math.min(60_000, 1000 * 2 ** Math.max(0, attempts));
+  const jitter = Math.floor(Math.random() * 500);
+  return base + jitter;
+}
+
 async function flushPendingBatches(jobId: string): Promise<void> {
   const state = await syncApiBase();
   const remaining: PendingBatch[] = [];
+  const now = Date.now();
 
   for (const batch of state.pendingBatches) {
+    if (batch.nextRetryAt && batch.nextRetryAt > now) {
+      remaining.push(batch);
+      continue;
+    }
+
     try {
       await api.sendBatch(jobId, {
         externalBatchId: batch.externalBatchId,
@@ -81,7 +199,22 @@ async function flushPendingBatches(jobId: string): Promise<void> {
     } catch (err) {
       const attempts = batch.attempts + 1;
       if (attempts < 8) {
-        remaining.push({ ...batch, attempts });
+        remaining.push({
+          ...batch,
+          attempts,
+          nextRetryAt: now + batchRetryDelayMs(attempts),
+        });
+      } else {
+        // Never silently drop — keep retrying on a long interval
+        console.error(
+          "[scrapper] batch send failed after 8 attempts; keeping for retry in 5m",
+          err,
+        );
+        remaining.push({
+          ...batch,
+          attempts,
+          nextRetryAt: now + 5 * 60_000,
+        });
       }
       console.error("[scrapper] batch send failed", err);
     }
@@ -141,19 +274,30 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         }
         case "POPUP_START": {
           const state = await syncApiBase();
-          const tabId = await getActiveTabId();
-          if (!tabId) throw new Error("No active tab");
-          const tab = await chrome.tabs.get(tabId);
-          const sourceUrl = tab.url ?? message.sourceUrl;
-          if (!sourceUrl || sourceUrl.startsWith("chrome://")) {
-            throw new Error("Open a normal webpage to scrape");
-          }
+          const tab = await resolveTab(message.tabId);
+          assertScrapableUrl(tab.url);
+          const sourceUrl = tab.url as string;
 
           const job = await api.createJob({
             name: message.name,
             sourceUrl,
             siteKey: state.siteKey,
           });
+
+          try {
+            await sendToContent(
+              {
+                type: "SCRAPER_START",
+                jobId: job.jobId,
+                siteKey: state.siteKey,
+                batchSize: state.batchSize,
+              },
+              tab.id,
+            );
+          } catch (err) {
+            await saveState({ status: "idle", jobId: null });
+            throw err;
+          }
 
           await saveState({
             jobId: job.jobId,
@@ -170,13 +314,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             },
           });
 
-          await sendToContent({
-            type: "SCRAPER_START",
-            jobId: job.jobId,
-            siteKey: state.siteKey,
-            batchSize: state.batchSize,
-          });
-
           startProgressPolling(job.jobId);
           sendResponse({ ok: true, jobId: job.jobId });
           break;
@@ -184,6 +321,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         case "POPUP_RESUME": {
           const state = await syncApiBase();
           if (!state.jobId) throw new Error("No job to resume");
+          const tab = await resolveTab(message.tabId);
 
           await api.updateJob(state.jobId, {
             status: "running",
@@ -194,14 +332,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             },
           });
 
-          // Prefer in-page resume when the engine is still paused; otherwise cold-start with checkpoint.
           let resumedInPlace = false;
           try {
-            const statusRes = (await sendToContent({
-              type: "SCRAPER_STATUS",
-            })) as { ok?: boolean; progress?: { status?: string } };
+            const statusRes = (await sendToContent(
+              { type: "SCRAPER_STATUS" },
+              tab.id,
+            )) as { ok?: boolean; progress?: { status?: string } };
             if (statusRes?.progress?.status === "paused") {
-              await sendToContent({ type: "SCRAPER_RESUME" });
+              await sendToContent({ type: "SCRAPER_RESUME" }, tab.id);
               resumedInPlace = true;
             }
           } catch {
@@ -209,16 +347,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           }
 
           if (!resumedInPlace) {
-            await sendToContent({
-              type: "SCRAPER_START",
-              jobId: state.jobId,
-              siteKey: state.siteKey,
-              batchSize: state.batchSize,
-              restore: {
-                scrollY: state.scrollY,
-                seenFingerprints: state.seenFingerprints,
+            await sendToContent(
+              {
+                type: "SCRAPER_START",
+                jobId: state.jobId,
+                siteKey: state.siteKey,
+                batchSize: state.batchSize,
+                restore: {
+                  scrollY: state.scrollY,
+                  seenFingerprints: state.seenFingerprints,
+                },
               },
-            });
+              tab.id,
+            );
           }
 
           await saveState({ status: "running" });
@@ -229,7 +370,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         }
         case "POPUP_PAUSE": {
           const state = await loadState();
-          await sendToContent({ type: "SCRAPER_PAUSE" });
+          const tab = await resolveTab(message.tabId);
+          await sendToContent({ type: "SCRAPER_PAUSE" }, tab.id);
           if (state.jobId) {
             await syncApiBase();
             await api.updateJob(state.jobId, {
@@ -248,7 +390,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         case "POPUP_STOP": {
           const state = await loadState();
           try {
-            await sendToContent({ type: "SCRAPER_STOP" });
+            const tab = await resolveTab(message.tabId);
+            await sendToContent({ type: "SCRAPER_STOP" }, tab.id);
           } catch {
             // content script may already be gone
           }
@@ -318,7 +461,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return true;
 });
 
-// Retry pending batches periodically (network recovery)
 setInterval(() => {
   void (async () => {
     const state = await loadState();

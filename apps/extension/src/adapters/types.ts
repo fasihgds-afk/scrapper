@@ -3,6 +3,26 @@ export type FieldSelector = {
   attr?: "text" | "href" | "value" | string;
 };
 
+export type UiGuardConfig = {
+  loadingSelectors?: string[];
+  errorSelectors?: string[];
+  throttleTextPatterns?: string[];
+};
+
+export type ScrollConfig = {
+  stepPx: number;
+  delayMs: number;
+  idleRounds: number;
+  /** Optional range — when set, each tick picks a random delay in [min, max] */
+  delayMsMin?: number;
+  delayMsMax?: number;
+  /** Optional range — when set, each tick picks a random step in [min, max] */
+  stepPxMin?: number;
+  stepPxMax?: number;
+  /** Extra bottom-jump cycles before marking the list stalled/complete */
+  stallRetries?: number;
+};
+
 export type SiteConfig = {
   siteKey: string;
   match: string[];
@@ -15,12 +35,12 @@ export type SiteConfig = {
     type: FieldSelector;
   };
   fingerprint: Array<"name" | "email" | "upn" | "type">;
-  scroll: {
-    stepPx: number;
-    delayMs: number;
-    idleRounds: number;
-  };
+  scroll: ScrollConfig;
   batchSize?: number;
+  /** Re-read all visible rows after each scroll (needed for virtualized Fluent lists) */
+  rescanOnScroll?: boolean;
+  /** Pause scrolling when loading spinners / throttle banners appear */
+  uiGuard?: UiGuardConfig;
 };
 
 export type ExtractedRecord = {

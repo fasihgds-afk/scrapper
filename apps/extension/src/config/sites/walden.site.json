@@ -1,0 +1,30 @@
+{
+  "siteKey": "walden",
+  "match": ["*://*/*"],
+  "scrollContainer": "[data-is-scrollable='true'], .ms-ScrollablePane--contentContainer, .ms-DetailsList-contentWrapper, .ms-DetailsList",
+  "rowSelector": ".ms-DetailsRow[role='row'], div.ms-DetailsRow[role='row'], [data-automationid='DetailsRow']",
+  "fields": {
+    "name": { "selector": "[data-automation-key='name']", "attr": "text" },
+    "email": { "selector": "[data-automation-key='email']", "attr": "text" },
+    "upn": { "selector": "[data-automation-key='upn']", "attr": "text" },
+    "type": { "selector": "[data-automation-key='type']", "attr": "text" }
+  },
+  "fingerprint": ["email", "upn", "name"],
+  "scroll": {
+    "stepPx": 700,
+    "delayMs": 2000,
+    "delayMsMin": 1500,
+    "delayMsMax": 3000,
+    "stepPxMin": 450,
+    "stepPxMax": 900,
+    "idleRounds": 35,
+    "stallRetries": 3
+  },
+  "uiGuard": {
+    "loadingSelectors": [".ms-Spinner", "[role='progressbar']", ".ms-Spinner-circle"],
+    "errorSelectors": ["[role='alert']", ".ms-MessageBar--error", ".ms-MessageBar--blocked"],
+    "throttleTextPatterns": ["too many requests", "try again later", "rate limit", "throttl"]
+  },
+  "batchSize": 200,
+  "rescanOnScroll": true
+}

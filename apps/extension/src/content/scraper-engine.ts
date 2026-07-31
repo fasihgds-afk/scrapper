@@ -4,6 +4,7 @@ import { DedupeBuffer } from "./dedupe-buffer";
 import { DynamicContentObserver } from "./mutation-observer";
 import { RecordExtractor } from "./record-extractor";
 import { ScrollController } from "./scroll-controller";
+import { createShouldWait } from "./ui-guard";
 
 export type EngineStatus = "idle" | "running" | "paused" | "stopped" | "completed";
 
@@ -74,10 +75,18 @@ export class ScraperEngine {
       this.ingest(records, options.onStatus);
     });
 
+    const shouldWait = createShouldWait(this.adapter.config.uiGuard);
+
     this.scroller = new ScrollController(
       this.adapter.getScrollTarget(),
       this.adapter.config.scroll,
       () => this.buffer!.seenCount,
+      async () => {
+        // Fluent/virtualized lists reuse DOM nodes — rescan visible rows every tick
+        if (this.status !== "running" || !this.extractor) return;
+        this.ingest(this.extractor.extractAll(location.href), options.onStatus);
+      },
+      shouldWait,
     );
 
     if (options.restore?.scrollY) {

@@ -2,10 +2,12 @@ import { GenericTableAdapter } from "./generic-table";
 import type { SiteAdapter, SiteConfig } from "./types";
 import defaultSite from "../config/sites/default.site.json";
 import quotesSite from "../config/sites/quotes.site.json";
+import waldenSite from "../config/sites/walden.site.json";
 
 const configs: Record<string, SiteConfig> = {
   default: defaultSite as SiteConfig,
   quotes: quotesSite as SiteConfig,
+  walden: waldenSite as SiteConfig,
 };
 
 export function registerSiteConfig(config: SiteConfig): void {
@@ -25,9 +27,8 @@ export function resolveAdapterForUrl(url: string, preferredKey?: string): SiteAd
     return createAdapter(preferredKey);
   }
 
-  // Prefer specific host matches over catch-all default
   const specific = Object.values(configs).filter(
-    (c) => c.siteKey !== "default" && c.match.some((m) => urlMatches(url, m)),
+    (c) => c.siteKey !== "default" && c.siteKey !== "walden" && c.match.some((m) => urlMatches(url, m)),
   );
   if (specific.length > 0) {
     return new GenericTableAdapter(specific[0]);
@@ -38,13 +39,12 @@ export function resolveAdapterForUrl(url: string, preferredKey?: string): SiteAd
 
 function urlMatches(url: string, pattern: string): boolean {
   try {
-    if (pattern === "*://*/*") return false; // catch-all handled separately
-    // Convert simple chrome-style patterns to regex
+    if (pattern === "*://*/*") return false;
     const escaped = pattern
       .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
       .replace(/\*/g, ".*");
     return new RegExp(`^${escaped}$`, "i").test(url);
   } catch {
-    return url.includes("quotes.toscrape.com");
+    return false;
   }
 }
