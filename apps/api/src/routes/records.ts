@@ -23,6 +23,7 @@ export const recordRoutes: FastifyPluginAsync = async (app) => {
     const query = request.query as {
       jobId?: string;
       q?: string;
+      university?: string;
       page?: string;
       limit?: string;
     };
@@ -30,14 +31,23 @@ export const recordRoutes: FastifyPluginAsync = async (app) => {
     return listRecords({
       jobId: query.jobId,
       q: query.q,
+      university: query.university,
       page: query.page ? Number(query.page) : 1,
       limit: query.limit ? Number(query.limit) : 50,
     });
   });
 
   app.get("/records/stats", async (request) => {
-    const query = request.query as { jobId?: string; q?: string };
-    const total = await countRecords({ jobId: query.jobId, q: query.q });
+    const query = request.query as {
+      jobId?: string;
+      q?: string;
+      university?: string;
+    };
+    const total = await countRecords({
+      jobId: query.jobId,
+      q: query.q,
+      university: query.university,
+    });
     return { total };
   });
 
@@ -45,6 +55,7 @@ export const recordRoutes: FastifyPluginAsync = async (app) => {
     const query = request.query as {
       jobId?: string;
       q?: string;
+      university?: string;
       limit?: string;
       from?: string;
       to?: string;
@@ -96,6 +107,7 @@ export const recordRoutes: FastifyPluginAsync = async (app) => {
       for await (const row of iterateRecords({
         jobId: query.jobId,
         q: query.q,
+        university: query.university,
         sort: "name",
       })) {
         if (written >= maxRows) break;

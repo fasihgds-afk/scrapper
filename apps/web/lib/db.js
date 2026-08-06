@@ -62,17 +62,60 @@ function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function buildRecordFilter({ jobId, q }) {
-  const filter = {};
-  if (jobId && mongoose.Types.ObjectId.isValid(jobId)) {
-    filter.jobId = new mongoose.Types.ObjectId(jobId);
+const UNIVERSITY_DOMAINS = {
+  capella: ["capella.edu", "capellauniversity.edu"],
+  walden: ["waldenu.edu"],
+};
+
+function domainRegex(domains) {
+  const escaped = domains.map((d) => escapeRegex(d)).join("|");
+  return new RegExp(`@(?:[\\w.-]+\\.)?(?:${escaped})$`, "i");
+}
+
+function universityClause(university) {
+  const key = typeof university === "string" ? university.trim().toLowerCase() : "";
+  if (!key) return null;
+
+  if (key === "capella" || key === "walden") {
+    const re = domainRegex(UNIVERSITY_DOMAINS[key]);
+    return { $or: [{ email: re }, { upn: re }] };
   }
+
+  if (key === "other") {
+    const allDomains = [
+      ...UNIVERSITY_DOMAINS.capella,
+      ...UNIVERSITY_DOMAINS.walden,
+    ];
+    const re = domainRegex(allDomains);
+    return {
+      $nor: [{ email: re }, { upn: re }],
+    };
+  }
+
+  return null;
+}
+
+function buildRecordFilter({ jobId, q, university }) {
+  const parts = [];
+
+  if (jobId && mongoose.Types.ObjectId.isValid(jobId)) {
+    parts.push({ jobId: new mongoose.Types.ObjectId(jobId) });
+  }
+
   const query = typeof q === "string" ? q.trim() : "";
   if (query) {
     const re = new RegExp(escapeRegex(query), "i");
-    filter.$or = [{ name: re }, { email: re }, { upn: re }, { type: re }];
+    parts.push({
+      $or: [{ name: re }, { email: re }, { upn: re }, { type: re }],
+    });
   }
-  return filter;
+
+  const uni = universityClause(university);
+  if (uni) parts.push(uni);
+
+  if (parts.length === 0) return {};
+  if (parts.length === 1) return parts[0];
+  return { $and: parts };
 }
 
 function sendJson(res, status, body) {

@@ -5,6 +5,41 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const UNIVERSITY_DOMAINS = {
+  capella: ["capella.edu", "capellauniversity.edu"],
+  walden: ["waldenu.edu"],
+} as const;
+
+export type UniversityFilter = "capella" | "walden" | "other" | "";
+
+function domainRegex(domains: readonly string[]): RegExp {
+  const escaped = domains.map((d) => escapeRegex(d)).join("|");
+  return new RegExp(`@(?:[\\w.-]+\\.)?(?:${escaped})$`, "i");
+}
+
+function universityClause(
+  university?: string,
+): Record<string, unknown> | null {
+  const key = university?.trim().toLowerCase() ?? "";
+  if (!key) return null;
+
+  if (key === "capella" || key === "walden") {
+    const re = domainRegex(UNIVERSITY_DOMAINS[key]);
+    return { $or: [{ email: re }, { upn: re }] };
+  }
+
+  if (key === "other") {
+    const allDomains = [
+      ...UNIVERSITY_DOMAINS.capella,
+      ...UNIVERSITY_DOMAINS.walden,
+    ];
+    const re = domainRegex(allDomains);
+    return { $nor: [{ email: re }, { upn: re }] };
+  }
+
+  return null;
+}
+
 function toIso(date: Date | null | undefined): string | null {
   return date ? date.toISOString() : null;
 }
@@ -28,32 +63,35 @@ export function serializeRecord(
 export type ListRecordsOptions = {
   jobId?: string;
   q?: string;
+  university?: string;
   page?: number;
   limit?: number;
 };
 
-function buildFilter(opts: { jobId?: string; q?: string }) {
-  const filter: Record<string, unknown> = {};
+function buildFilter(opts: { jobId?: string; q?: string; university?: string }) {
+  const parts: Record<string, unknown>[] = [];
 
   if (opts.jobId) {
     if (!Types.ObjectId.isValid(opts.jobId)) {
       return null;
     }
-    filter.jobId = new Types.ObjectId(opts.jobId);
+    parts.push({ jobId: new Types.ObjectId(opts.jobId) });
   }
 
   const query = opts.q?.trim();
   if (query) {
     const re = new RegExp(escapeRegex(query), "i");
-    filter.$or = [
-      { name: re },
-      { email: re },
-      { upn: re },
-      { type: re },
-    ];
+    parts.push({
+      $or: [{ name: re }, { email: re }, { upn: re }, { type: re }],
+    });
   }
 
-  return filter;
+  const uni = universityClause(opts.university);
+  if (uni) parts.push(uni);
+
+  if (parts.length === 0) return {};
+  if (parts.length === 1) return parts[0]!;
+  return { $and: parts };
 }
 
 export async function listRecords(opts: ListRecordsOptions) {
@@ -92,6 +130,7 @@ export async function listRecords(opts: ListRecordsOptions) {
 export async function* iterateRecords(opts: {
   jobId?: string;
   q?: string;
+  university?: string;
   batchSize?: number;
   sort?: "recent" | "name";
 }) {
@@ -174,7 +213,9 @@ export async function* iterateRecords(opts: {
   }
 }
 
-export async function countRecords(opts: { jobId?: string; q?: string } = {}) {
+export async function countRecords(
+  opts: { jobId?: string; q?: string; university?: string } = {},
+) {
   const filter = buildFilter(opts);
   if (filter === null) return 0;
   return RecordModel.countDocuments(filter);

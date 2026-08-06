@@ -24,7 +24,8 @@ module.exports = async function handler(req, res) {
     const url = new URL(req.url, "http://localhost");
     const jobId = url.searchParams.get("jobId") || undefined;
     const q = url.searchParams.get("q") || undefined;
-    const filter = buildRecordFilter({ jobId, q });
+    const university = url.searchParams.get("university") || undefined;
+    const filter = buildRecordFilter({ jobId, q, university });
 
     const fromRaw = Math.floor(Number(url.searchParams.get("from") ?? 1));
     const toRaw = Math.floor(Number(url.searchParams.get("to") ?? fromRaw));

@@ -709,6 +709,12 @@
       <select id="jobFilter" aria-label="Job">
         <option value="">All jobs</option>
       </select>
+      <select id="universityFilter" aria-label="University">
+        <option value="">All universities</option>
+        <option value="capella">Capella</option>
+        <option value="walden">Walden</option>
+        <option value="other">Other</option>
+      </select>
       <span class="spacer"></span>
       <button type="button" class="btn-line" id="refreshBtn">
         <span class="btn-label">Refresh</span>
@@ -792,6 +798,7 @@
       totalPages: 1,
       q: "",
       jobId: "",
+      university: "",
       jobs: {},
       debounce: null,
       loading: false,
@@ -805,6 +812,7 @@
       tbody: document.getElementById("tbody"),
       search: document.getElementById("search"),
       jobFilter: document.getElementById("jobFilter"),
+      universityFilter: document.getElementById("universityFilter"),
       refreshBtn: document.getElementById("refreshBtn"),
       exportBtn: document.getElementById("exportBtn"),
       prevBtn: document.getElementById("prevBtn"),
@@ -1005,6 +1013,7 @@
       const params = new URLSearchParams();
       if (state.q) params.set("q", state.q);
       if (state.jobId) params.set("jobId", state.jobId);
+      if (state.university) params.set("university", state.university);
       for (const [k, v] of Object.entries(extra)) {
         if (v !== undefined && v !== null && v !== "") params.set(k, String(v));
       }
@@ -1196,6 +1205,12 @@
 
     el.jobFilter.addEventListener("change", () => {
       state.jobId = el.jobFilter.value;
+      state.page = 1;
+      loadRecords().catch(showError);
+    });
+
+    el.universityFilter.addEventListener("change", () => {
+      state.university = el.universityFilter.value;
       state.page = 1;
       loadRecords().catch(showError);
     });

@@ -12,9 +12,10 @@ module.exports = async function handler(req, res) {
     const url = new URL(req.url, "http://localhost");
     const jobId = url.searchParams.get("jobId") || undefined;
     const q = url.searchParams.get("q") || undefined;
+    const university = url.searchParams.get("university") || undefined;
     const page = Math.max(Number(url.searchParams.get("page") || 1), 1);
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 50), 1), 100);
-    const filter = buildRecordFilter({ jobId, q });
+    const filter = buildRecordFilter({ jobId, q, university });
 
     const [docs, total] = await Promise.all([
       Record.find(filter)

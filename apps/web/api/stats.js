@@ -14,6 +14,7 @@ module.exports = async function handler(req, res) {
       buildRecordFilter({
         jobId: url.searchParams.get("jobId") || undefined,
         q: url.searchParams.get("q") || undefined,
+        university: url.searchParams.get("university") || undefined,
       }),
     );
     sendJson(res, 200, { total });
