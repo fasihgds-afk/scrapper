@@ -68,6 +68,25 @@ export function checkUiGuard(config?: UiGuardConfig): UiGuardResult {
   return { wait: false };
 }
 
+/**
+ * Wait for transient loaders only. Persistent Fluent chrome
+ * (`[role=progressbar]` that never leaves) is ignored after a short grace period
+ * so scraping does not freeze for 60s on every tick.
+ */
 export function createShouldWait(config?: UiGuardConfig): () => Promise<boolean> {
-  return async () => checkUiGuard(config).wait;
+  let loadingSince: number | null = null;
+  const persistMs = 8_000;
+
+  return async () => {
+    const result = checkUiGuard(config);
+    if (result.reason === "loading") {
+      if (loadingSince == null) loadingSince = Date.now();
+      if (Date.now() - loadingSince > persistMs) {
+        return false;
+      }
+      return true;
+    }
+    loadingSince = null;
+    return result.wait;
+  };
 }

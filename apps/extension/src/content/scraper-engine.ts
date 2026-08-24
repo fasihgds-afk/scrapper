@@ -52,6 +52,15 @@ export class ScraperEngine {
 
   async start(options: EngineOptions): Promise<void> {
     if (this.status === "running") return;
+    if (this.status === "paused") {
+      this.jobId = options.jobId;
+      this.resume();
+      options.onStatus(this.getProgress());
+      return;
+    }
+
+    this.scroller?.stop();
+    this.observer?.stop();
 
     this.jobId = options.jobId;
     this.adapter = resolveAdapterForUrl(location.href, options.siteKey);
@@ -78,7 +87,7 @@ export class ScraperEngine {
     const shouldWait = createShouldWait(this.adapter.config.uiGuard);
 
     this.scroller = new ScrollController(
-      this.adapter.getScrollTarget(),
+      () => this.adapter!.getScrollTarget(),
       this.adapter.config.scroll,
       () => this.buffer!.seenCount,
       async () => {
@@ -101,14 +110,18 @@ export class ScraperEngine {
     this.observer.start(document.body);
 
     const result = await this.scroller.run();
-    await this.buffer.flush();
+    const afterStatus = this.getProgress().status;
 
-    if (this.status === "paused") {
+    if (afterStatus === "paused") {
+      await this.buffer.flush();
       options.onStatus(this.getProgress());
       return;
     }
 
-    this.status = result === "stalled" ? "completed" : "stopped";
+    if (afterStatus === "running") {
+      this.status = result === "stalled" ? "completed" : "stopped";
+    }
+    await this.buffer.flush();
     this.observer.stop();
     options.onStatus(this.getProgress());
   }

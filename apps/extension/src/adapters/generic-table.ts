@@ -27,6 +27,24 @@ function firstMatching(selectors: string): Element | null {
   return null;
 }
 
+function isScrollable(el: Element): boolean {
+  const style = window.getComputedStyle(el);
+  return (
+    /(auto|scroll|overlay)/.test(style.overflowY) &&
+    el.scrollHeight > el.clientHeight + 20
+  );
+}
+
+/** Walk up from a row to the pane that actually scrolls (Fluent virtualized lists). */
+function scrollParentOf(el: Element): Element | null {
+  let node: HTMLElement | null = el.parentElement;
+  while (node && node !== document.documentElement) {
+    if (isScrollable(node)) return node;
+    node = node.parentElement;
+  }
+  return null;
+}
+
 /** Prefer the tallest scrollable element among matches (Fluent list pane). */
 function bestScrollable(selectors: string): Element | null {
   let best: Element | null = null;
@@ -115,6 +133,12 @@ export class GenericTableAdapter implements SiteAdapter {
   }
 
   getScrollTarget(): Element | Window {
+    const firstRow = this.getRows()[0];
+    if (firstRow) {
+      const fromRow = scrollParentOf(firstRow);
+      if (fromRow) return fromRow;
+    }
+
     const sel = this.config.scrollContainer;
     if (!sel || sel === "body" || sel === "window") return window;
     return bestScrollable(sel) ?? firstMatching(sel) ?? window;

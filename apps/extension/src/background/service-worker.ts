@@ -30,6 +30,7 @@ async function resolveTab(tabId?: number): Promise<chrome.tabs.Tab> {
   if (typeof tabId === "number") {
     const tab = await chrome.tabs.get(tabId);
     lastTabId = tab.id ?? null;
+    if (lastTabId != null) void saveState({ lastTabId });
     return tab;
   }
   if (lastTabId != null) {
@@ -40,10 +41,21 @@ async function resolveTab(tabId?: number): Promise<chrome.tabs.Tab> {
       lastTabId = null;
     }
   }
+  const stored = await loadState();
+  if (stored.lastTabId != null) {
+    try {
+      const tab = await chrome.tabs.get(stored.lastTabId);
+      lastTabId = tab.id ?? null;
+      return tab;
+    } catch {
+      // tab gone
+    }
+  }
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const tab = tabs[0];
   if (!tab?.id) throw new Error("No active tab — open a website first");
   lastTabId = tab.id;
+  void saveState({ lastTabId });
   return tab;
 }
 
@@ -96,7 +108,14 @@ async function ensureContentScript(tabId: number): Promise<void> {
     await sleep(120);
   }
 
-  // Last resort: reload tab and inject again
+  const state = await loadState();
+  if (state.status === "running" || state.status === "paused") {
+    throw new Error(
+      "Lost connection to the page while a job is active. Refresh the website tab, then click Resume. The tab was not reloaded automatically so your progress is kept.",
+    );
+  }
+
+  // Last resort only when no job is in flight — reload would kill a live scrape
   await chrome.tabs.reload(tabId);
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -125,7 +144,7 @@ async function ensureContentScript(tabId: number): Promise<void> {
   }
 
   throw new Error(
-    "Still cannot connect to the page. Close other Chrome windows, open http://quotes.toscrape.com/scroll , refresh, then Start.",
+    "Still cannot connect to the page. Close other Chrome windows, open the target site, refresh, then Start.",
   );
 }
 
@@ -223,25 +242,62 @@ async function flushPendingBatches(jobId: string): Promise<void> {
   await saveState({ pendingBatches: remaining });
 }
 
+async function pollServerProgress(jobId: string): Promise<void> {
+  try {
+    await syncApiBase();
+    const progress = await api.getProgress(jobId);
+    // Never copy server status onto the engine. Server staying "running"
+    // after a local stall is what made the popup look like it auto-resumed.
+    await saveState({
+      serverProgress: {
+        totalFound: progress.totalFound,
+        totalSaved: progress.totalSaved,
+        totalFailed: progress.totalFailed,
+        totalDuplicates: progress.totalDuplicates,
+        queueDepth: (progress as { queueDepth?: number }).queueDepth,
+      },
+    });
+  } catch (err) {
+    console.warn("[scrapper] progress poll failed", err);
+  }
+}
+
+async function persistTerminalStatus(
+  jobId: string,
+  progress: EngineProgress,
+): Promise<void> {
+  if (progress.status !== "completed" && progress.status !== "stopped") return;
+  try {
+    await syncApiBase();
+    await api.updateJob(jobId, {
+      status: progress.status,
+      checkpoint: {
+        scrollY: progress.scrollY,
+        seenCount: progress.localFound,
+        lastFingerprint: progress.lastFingerprint,
+        reason: progress.status === "completed" ? "no_new_data" : "stopped",
+      },
+      reason: progress.status === "completed" ? "no_new_data" : "stopped",
+    });
+  } catch (err) {
+    console.warn("[scrapper] failed to persist terminal job status", err);
+  }
+  stopProgressPolling();
+}
+
+function armKeepAlive(): void {
+  void chrome.alarms.create("scrapper-tick", { periodInMinutes: 1 });
+}
+
 function startProgressPolling(jobId: string): void {
   stopProgressPolling();
+  armKeepAlive();
   progressPollTimer = setInterval(() => {
+    void pollServerProgress(jobId);
     void (async () => {
-      try {
-        await syncApiBase();
-        const progress = await api.getProgress(jobId);
-        await saveState({
-          status: progress.status,
-          serverProgress: {
-            totalFound: progress.totalFound,
-            totalSaved: progress.totalSaved,
-            totalFailed: progress.totalFailed,
-            totalDuplicates: progress.totalDuplicates,
-            queueDepth: (progress as { queueDepth?: number }).queueDepth,
-          },
-        });
-      } catch (err) {
-        console.warn("[scrapper] progress poll failed", err);
+      const state = await loadState();
+      if (state.jobId && state.pendingBatches.length > 0) {
+        await flushPendingBatches(state.jobId);
       }
     })();
   }, 2000);
@@ -252,6 +308,7 @@ function stopProgressPolling(): void {
     clearInterval(progressPollTimer);
     progressPollTimer = null;
   }
+  void chrome.alarms.clear("scrapper-tick");
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -306,6 +363,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             scrollY: 0,
             seenFingerprints: [],
             pendingBatches: [],
+            lastTabId: tab.id ?? null,
+            lastHeartbeatAt: Date.now(),
             serverProgress: {
               totalFound: 0,
               totalSaved: 0,
@@ -362,7 +421,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             );
           }
 
-          await saveState({ status: "running" });
+          await saveState({ status: "running", lastTabId: tab.id ?? state.lastTabId, lastHeartbeatAt: Date.now() });
           startProgressPolling(state.jobId);
           await flushPendingBatches(state.jobId);
           sendResponse({ ok: true, jobId: state.jobId });
@@ -419,32 +478,27 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             checkpoint: EngineProgress;
           };
           await enqueueAndSendBatch(jobId, records, checkpoint);
-          if (checkpoint.status === "completed") {
-            await syncApiBase();
-            await api.updateJob(jobId, {
-              status: "completed",
-              checkpoint: {
-                scrollY: checkpoint.scrollY,
-                seenCount: checkpoint.localFound,
-                lastFingerprint: checkpoint.lastFingerprint,
-                reason: "no_new_data",
-              },
-              reason: "no_new_data",
-            });
-            stopProgressPolling();
-            await saveState({ status: "completed" });
+          if (checkpoint.status === "completed" || checkpoint.status === "stopped") {
+            await persistTerminalStatus(jobId, checkpoint);
+            await saveState({ status: checkpoint.status });
           }
           sendResponse({ ok: true });
           break;
         }
-        case "STATUS_FROM_CONTENT": {
+        case "STATUS_FROM_CONTENT":
+        case "CONTENT_HEARTBEAT": {
           const progress = message.progress as EngineProgress;
           await saveState({
             status: progress.status,
             localFound: progress.localFound,
             scrollY: progress.scrollY,
             lastFingerprint: progress.lastFingerprint,
+            lastHeartbeatAt: Date.now(),
+            ...(lastTabId != null ? { lastTabId } : {}),
           });
+          if (progress.jobId) {
+            await persistTerminalStatus(progress.jobId, progress);
+          }
           sendResponse({ ok: true });
           break;
         }
@@ -461,11 +515,50 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return true;
 });
 
-setInterval(() => {
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== "scrapper-tick") return;
   void (async () => {
     const state = await loadState();
     if (state.jobId && state.pendingBatches.length > 0) {
       await flushPendingBatches(state.jobId);
     }
+    if (state.jobId && state.status === "running") {
+      await pollServerProgress(state.jobId);
+      startProgressPolling(state.jobId);
+      const heartbeatAge = state.lastHeartbeatAt
+        ? Date.now() - state.lastHeartbeatAt
+        : Number.POSITIVE_INFINITY;
+      if (heartbeatAge > 45_000) {
+        try {
+          await sendToContent(
+            {
+              type: "SCRAPER_START",
+              jobId: state.jobId,
+              siteKey: state.siteKey,
+              batchSize: state.batchSize,
+              restore: {
+                scrollY: state.scrollY,
+                seenFingerprints: state.seenFingerprints,
+              },
+            },
+            state.lastTabId ?? undefined,
+          );
+          await saveState({ lastHeartbeatAt: Date.now() });
+        } catch (err) {
+          console.warn("[scrapper] auto-resume after silent tab failed", err);
+        }
+      }
+    }
   })();
-}, 10000);
+});
+
+void (async () => {
+  const state = await loadState();
+  if (typeof state.lastTabId === "number") lastTabId = state.lastTabId;
+  if (state.jobId && (state.status === "running" || state.pendingBatches.length > 0)) {
+    startProgressPolling(state.jobId);
+    if (state.pendingBatches.length > 0) {
+      await flushPendingBatches(state.jobId);
+    }
+  }
+})();

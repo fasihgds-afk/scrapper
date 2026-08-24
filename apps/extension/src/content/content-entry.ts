@@ -4,6 +4,8 @@ import type { ExtractedRecord } from "../adapters/types";
 declare global {
   interface Window {
     __scrapperEngine?: ScraperEngine;
+    __scrapperBound?: boolean;
+    __scrapperHeartbeat?: ReturnType<typeof setInterval>;
   }
 }
 
@@ -23,61 +25,90 @@ type ContentCommand =
   | { type: "SCRAPER_STOP" }
   | { type: "SCRAPER_STATUS" };
 
-chrome.runtime.onMessage.addListener((message: ContentCommand, _sender, sendResponse) => {
-  void (async () => {
-    try {
-      switch (message.type) {
-        case "SCRAPER_START": {
-          void engine.start({
-            jobId: message.jobId,
-            siteKey: message.siteKey,
-            batchSize: message.batchSize,
-            restore: message.restore,
-            onBatch: async (records, checkpoint) => {
-              await chrome.runtime.sendMessage({
-                type: "BATCH_FROM_CONTENT",
-                jobId: message.jobId,
-                records,
-                checkpoint,
-              });
-            },
-            onStatus: (progress) => {
-              void chrome.runtime.sendMessage({
-                type: "STATUS_FROM_CONTENT",
-                progress,
-              });
-            },
-          });
-          sendResponse({ ok: true, progress: engine.getProgress() });
-          break;
-        }
-        case "SCRAPER_PAUSE":
-          engine.pause();
-          sendResponse({ ok: true, progress: engine.getProgress() });
-          break;
-        case "SCRAPER_RESUME":
-          engine.resume();
-          sendResponse({ ok: true, progress: engine.getProgress() });
-          break;
-        case "SCRAPER_STOP": {
-          const progress = await engine.stop();
-          sendResponse({ ok: true, progress });
-          break;
-        }
-        case "SCRAPER_STATUS":
-          sendResponse({ ok: true, progress: engine.getProgress() });
-          break;
-        default:
-          sendResponse({ ok: false, error: "Unknown command" });
-      }
-    } catch (err) {
-      sendResponse({
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
+function stopHeartbeat(): void {
+  if (window.__scrapperHeartbeat) {
+    clearInterval(window.__scrapperHeartbeat);
+    window.__scrapperHeartbeat = undefined;
+  }
+}
+
+function startHeartbeat(): void {
+  stopHeartbeat();
+  window.__scrapperHeartbeat = setInterval(() => {
+    const progress = engine.getProgress();
+    if (progress.status !== "running" && progress.status !== "paused") {
+      stopHeartbeat();
+      return;
     }
-  })();
-  return true;
-});
+    void chrome.runtime.sendMessage({ type: "CONTENT_HEARTBEAT", progress }).catch(() => undefined);
+  }, 20_000);
+}
+
+if (!window.__scrapperBound) {
+  window.__scrapperBound = true;
+
+  chrome.runtime.onMessage.addListener((message: ContentCommand, _sender, sendResponse) => {
+    void (async () => {
+      try {
+        switch (message.type) {
+          case "SCRAPER_START": {
+            startHeartbeat();
+            void engine.start({
+              jobId: message.jobId,
+              siteKey: message.siteKey,
+              batchSize: message.batchSize,
+              restore: message.restore,
+              onBatch: async (records, checkpoint) => {
+                await chrome.runtime.sendMessage({
+                  type: "BATCH_FROM_CONTENT",
+                  jobId: message.jobId,
+                  records,
+                  checkpoint,
+                });
+              },
+              onStatus: (progress) => {
+                if (progress.status !== "running" && progress.status !== "paused") {
+                  stopHeartbeat();
+                }
+                void chrome.runtime.sendMessage({
+                  type: "STATUS_FROM_CONTENT",
+                  progress,
+                });
+              },
+            });
+            sendResponse({ ok: true, progress: engine.getProgress() });
+            break;
+          }
+          case "SCRAPER_PAUSE":
+            engine.pause();
+            sendResponse({ ok: true, progress: engine.getProgress() });
+            break;
+          case "SCRAPER_RESUME":
+            engine.resume();
+            startHeartbeat();
+            sendResponse({ ok: true, progress: engine.getProgress() });
+            break;
+          case "SCRAPER_STOP": {
+            stopHeartbeat();
+            const progress = await engine.stop();
+            sendResponse({ ok: true, progress });
+            break;
+          }
+          case "SCRAPER_STATUS":
+            sendResponse({ ok: true, progress: engine.getProgress() });
+            break;
+          default:
+            sendResponse({ ok: false, error: "Unknown command" });
+        }
+      } catch (err) {
+        sendResponse({
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    })();
+    return true;
+  });
+}
 
 export type { EngineProgress, ExtractedRecord };

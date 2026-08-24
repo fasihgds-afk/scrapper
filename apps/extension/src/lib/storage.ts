@@ -29,6 +29,8 @@ export type ExtensionState = {
   lastFingerprint?: string;
   seenFingerprints: string[];
   pendingBatches: PendingBatch[];
+  lastTabId?: number | null;
+  lastHeartbeatAt?: number;
   serverProgress?: {
     totalFound: number;
     totalSaved: number;

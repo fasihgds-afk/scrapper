@@ -63,6 +63,7 @@ function scrollBy(target: Element | Window, amount: number): void {
 }
 
 export type ShouldWaitFn = () => Promise<boolean>;
+export type TargetFn = () => Element | Window;
 
 export class ScrollController {
   private running = false;
@@ -70,24 +71,28 @@ export class ScrollController {
   private idleRounds = 0;
   private lastSeenCount = 0;
   private stallAttempts = 0;
+  private getTarget: TargetFn;
 
   constructor(
-    private target: Element | Window,
+    target: Element | Window | TargetFn,
     private options: ScrollOptions,
     private getSeenCount: () => number,
     private onTick?: () => void | Promise<void>,
     private shouldWait?: ShouldWaitFn,
-  ) {}
+  ) {
+    this.getTarget = typeof target === "function" ? target : () => target;
+  }
 
   get scrollY(): number {
-    return getScrollMetrics(this.target).scrollTop;
+    return getScrollMetrics(this.getTarget()).scrollTop;
   }
 
   async restorePosition(scrollY: number): Promise<void> {
-    if (this.target === window) {
+    const target = this.getTarget();
+    if (target === window) {
       window.scrollTo(0, scrollY);
     } else {
-      (this.target as Element).scrollTop = scrollY;
+      (target as Element).scrollTop = scrollY;
     }
     await sleep(resolveDelayMs(this.options));
   }
@@ -115,8 +120,8 @@ export class ScrollController {
   /** Wait for UI guard without burning idle rounds. Returns false if stopped. */
   private async waitForClearUi(): Promise<boolean> {
     if (!this.shouldWait) return true;
-    const maxWaitMs = 60_000;
-    const pollMs = 1000;
+    const maxWaitMs = 12_000;
+    const pollMs = 400;
     let waited = 0;
     while (this.running && (await this.shouldWait())) {
       if (!(await this.waitWhilePaused())) return false;
@@ -139,9 +144,10 @@ export class ScrollController {
       if (!(await this.waitWhilePaused())) break;
       if (!(await this.waitForClearUi())) break;
 
+      const target = this.getTarget();
       const step = resolveStepPx(this.options);
       const delay = resolveDelayMs(this.options);
-      scrollBy(this.target, step);
+      scrollBy(target, step);
       await sleep(delay);
       if (this.onTick) await this.onTick();
 
@@ -154,32 +160,45 @@ export class ScrollController {
         this.idleRounds += 1;
       }
 
-      if (this.idleRounds >= this.options.idleRounds) {
-        const metrics = getScrollMetrics(this.target);
-        const notAtBottom =
-          metrics.scrollTop + metrics.clientHeight < metrics.scrollHeight - 20;
+      if (this.idleRounds < this.options.idleRounds) continue;
 
-        if (notAtBottom || this.stallAttempts < stallRetries) {
-          this.stallAttempts += 1;
-          scrollBy(this.target, metrics.scrollHeight);
-          await sleep(maxDelayMs(this.options) * 2);
-          if (this.onTick) await this.onTick();
-          const after = this.getSeenCount();
-          if (after > this.lastSeenCount) {
-            this.idleRounds = 0;
-            this.stallAttempts = 0;
-            this.lastSeenCount = after;
-            continue;
-          }
-          // Soft retry: reset idle and keep scrolling a bit more before giving up
-          if (this.stallAttempts < stallRetries) {
-            this.idleRounds = Math.floor(this.options.idleRounds / 2);
-            continue;
-          }
+      const metrics = getScrollMetrics(this.getTarget());
+      const notAtBottom =
+        metrics.scrollTop + metrics.clientHeight < metrics.scrollHeight - 20;
+
+      // Still more list to scroll — never mark complete. Keep moving.
+      if (notAtBottom) {
+        this.idleRounds = Math.max(1, Math.floor(this.options.idleRounds / 2));
+        scrollBy(this.getTarget(), Math.max(step, metrics.clientHeight));
+        await sleep(delay);
+        if (this.onTick) await this.onTick();
+        const after = this.getSeenCount();
+        if (after > this.lastSeenCount) {
+          this.idleRounds = 0;
+          this.stallAttempts = 0;
+          this.lastSeenCount = after;
         }
-        this.running = false;
-        return "stalled";
+        continue;
       }
+
+      if (this.stallAttempts < stallRetries) {
+        this.stallAttempts += 1;
+        scrollBy(this.getTarget(), metrics.scrollHeight);
+        await sleep(maxDelayMs(this.options) * 2);
+        if (this.onTick) await this.onTick();
+        const after = this.getSeenCount();
+        if (after > this.lastSeenCount) {
+          this.idleRounds = 0;
+          this.stallAttempts = 0;
+          this.lastSeenCount = after;
+          continue;
+        }
+        this.idleRounds = Math.floor(this.options.idleRounds / 2);
+        continue;
+      }
+
+      this.running = false;
+      return "stalled";
     }
 
     return "stopped";
