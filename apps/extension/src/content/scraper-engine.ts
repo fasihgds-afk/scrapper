@@ -63,7 +63,11 @@ export class ScraperEngine {
     this.observer?.stop();
 
     this.jobId = options.jobId;
-    this.adapter = resolveAdapterForUrl(location.href, options.siteKey);
+    const heading = `${document.title}\n${(document.body?.innerText ?? "").slice(0, 4000)}`;
+    const siteKey = /GCU[-_]CON[-_]3P/i.test(heading)
+      ? "gcu_con_3p"
+      : options.siteKey;
+    this.adapter = resolveAdapterForUrl(location.href, siteKey);
     const batchSize =
       options.batchSize ?? this.adapter.config.batchSize ?? 200;
 

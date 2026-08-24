@@ -34,6 +34,7 @@ module.exports = async function handler(req, res) {
         email: doc.email ?? "",
         upn: doc.upn ?? "",
         type: doc.type ?? "",
+        tag: doc.tag ?? "",
         sourceUrl: doc.sourceUrl ?? "",
         fingerprint: doc.fingerprint,
         createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,

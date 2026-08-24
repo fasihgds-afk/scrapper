@@ -47,6 +47,7 @@ const recordSchema = new mongoose.Schema(
     email: String,
     upn: String,
     type: String,
+    tag: String,
     sourceUrl: String,
     fingerprint: String,
   },
@@ -56,6 +57,7 @@ const recordSchema = new mongoose.Schema(
 // Speeds Capella/Walden A–Z export (sort + domain filter).
 recordSchema.index({ name: 1, email: 1, _id: 1 });
 recordSchema.index({ email: 1 });
+recordSchema.index({ tag: 1 });
 
 const ScrapingJob =
   mongoose.models.ScrapingJob || mongoose.model("ScrapingJob", jobSchema);
@@ -70,6 +72,12 @@ const UNIVERSITY_DOMAINS = {
   capella: ["capella.edu", "capellauniversity.edu"],
   walden: ["waldenu.edu"],
 };
+
+const GCU_TAG_RE = /^GCU[_-]CON[_-]3P$/i;
+
+function isGcuFilter(key) {
+  return key === "gcu_con_3p" || key === "gcu-con-3p" || key === "gcu_con-3p";
+}
 
 /** Suffix match on domain — cheaper than nested groups; still matches mail.capella.edu. */
 function domainSuffixClauses(domains) {
@@ -89,13 +97,17 @@ function universityClause(university) {
     return { $or: domainSuffixClauses(UNIVERSITY_DOMAINS[key]) };
   }
 
+  if (isGcuFilter(key)) {
+    return { tag: GCU_TAG_RE };
+  }
+
   if (key === "other") {
     const allDomains = [
       ...UNIVERSITY_DOMAINS.capella,
       ...UNIVERSITY_DOMAINS.walden,
     ];
     return {
-      $nor: domainSuffixClauses(allDomains),
+      $nor: [...domainSuffixClauses(allDomains), { tag: GCU_TAG_RE }],
     };
   }
 
@@ -113,7 +125,7 @@ function buildRecordFilter({ jobId, q, university }) {
   if (query) {
     const re = new RegExp(escapeRegex(query), "i");
     parts.push({
-      $or: [{ name: re }, { email: re }, { upn: re }, { type: re }],
+      $or: [{ name: re }, { email: re }, { upn: re }, { type: re }, { tag: re }],
     });
   }
 

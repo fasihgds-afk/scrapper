@@ -1,0 +1,36 @@
+{
+  "siteKey": "gcu_con_3p",
+  "tag": "GCU_CON-3P",
+  "match": [
+    "*://outlook.office.com/*",
+    "*://outlook.office365.com/*",
+    "*://*.office.com/*",
+    "*://teams.microsoft.com/*"
+  ],
+  "scrollContainer": "[data-is-scrollable='true'], .ms-ScrollablePane--contentContainer, .ms-DetailsList-contentWrapper, .ms-DetailsList, .ms-List, [role='list']",
+  "rowSelector": "div[role='listitem'], .ms-List-cell, .ms-DetailsRow[role='row'], .ms-Persona, [data-automationid='Persona']",
+  "fields": {
+    "name": { "selector": ".ms-Persona-primaryText, .fui-Persona__primaryText, [data-automation-key='name']", "attr": "text" },
+    "email": { "selector": "a[href^='mailto:'], [data-automation-key='email']", "attr": "text" },
+    "upn": { "selector": "[data-automation-key='upn']", "attr": "text" },
+    "type": { "selector": ".ms-Persona-secondaryText, [data-automation-key='type']", "attr": "text" }
+  },
+  "fingerprint": ["name", "email"],
+  "scroll": {
+    "stepPx": 600,
+    "delayMs": 1800,
+    "delayMsMin": 1200,
+    "delayMsMax": 2600,
+    "stepPxMin": 400,
+    "stepPxMax": 800,
+    "idleRounds": 40,
+    "stallRetries": 10
+  },
+  "uiGuard": {
+    "loadingSelectors": [".ms-Spinner", "[role='progressbar']", ".ms-Spinner-circle"],
+    "errorSelectors": ["[role='alert']", ".ms-MessageBar--error", ".ms-MessageBar--blocked"],
+    "throttleTextPatterns": ["too many requests", "try again later", "rate limit", "throttl"]
+  },
+  "batchSize": 200,
+  "rescanOnScroll": true
+}

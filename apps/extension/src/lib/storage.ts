@@ -5,6 +5,7 @@ export type PendingBatch = {
     email: string;
     upn: string;
     type: string;
+    tag?: string;
     sourceUrl: string;
     fingerprint: string;
   }>;
@@ -30,6 +31,7 @@ export type ExtensionState = {
   seenFingerprints: string[];
   pendingBatches: PendingBatch[];
   lastTabId?: number | null;
+  scrapeFrameId?: number | null;
   lastHeartbeatAt?: number;
   serverProgress?: {
     totalFound: number;
@@ -77,6 +79,8 @@ export async function clearJobState(): Promise<ExtensionState> {
     lastFingerprint: undefined,
     seenFingerprints: [],
     pendingBatches: [],
+    lastTabId: undefined,
+    scrapeFrameId: null,
     serverProgress: undefined,
   });
 }

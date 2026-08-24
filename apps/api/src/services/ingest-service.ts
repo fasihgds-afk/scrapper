@@ -7,20 +7,22 @@ export function fingerprintRecord(record: ScrapedRecord): string {
   if (record.fingerprint && record.fingerprint.trim()) {
     return record.fingerprint.trim();
   }
-  const basis = `${record.email}|${record.upn}|${record.name}|${record.type}`;
+  const basis = `${record.tag}|${record.email}|${record.upn}|${record.name}|${record.type}`;
   return createHash("sha256").update(basis).digest("hex");
 }
 
 export function normalizeRecord(record: ScrapedRecord, fallbackSourceUrl: string) {
   const email = (record.email ?? "").trim();
   const upn = (record.upn ?? "").trim();
+  const tag = (record.tag ?? "").trim();
   return {
     name: (record.name ?? "").trim(),
     email,
     upn,
     type: (record.type ?? "").trim(),
+    tag,
     sourceUrl: (record.sourceUrl || fallbackSourceUrl || "").trim(),
-    fingerprint: fingerprintRecord({ ...record, email, upn }),
+    fingerprint: fingerprintRecord({ ...record, email, upn, tag }),
   };
 }
 
@@ -53,6 +55,7 @@ export async function ingestRecords(
                 email: r.email,
                 upn: r.upn,
                 type: r.type,
+                tag: r.tag,
                 sourceUrl: r.sourceUrl,
                 fingerprint: r.fingerprint,
               },

@@ -37,6 +37,8 @@ export type SiteConfig = {
   fingerprint: Array<"name" | "email" | "upn" | "type">;
   scroll: ScrollConfig;
   batchSize?: number;
+  /** Stored on every record so the dashboard can filter this scrape */
+  tag?: string;
   /** Re-read all visible rows after each scroll (needed for virtualized Fluent lists) */
   rescanOnScroll?: boolean;
   /** Pause scrolling when loading spinners / throttle banners appear */
@@ -48,6 +50,7 @@ export type ExtractedRecord = {
   email: string;
   upn: string;
   type: string;
+  tag: string;
   sourceUrl: string;
   fingerprint: string;
 };

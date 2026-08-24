@@ -10,7 +10,13 @@ const UNIVERSITY_DOMAINS = {
   walden: ["waldenu.edu"],
 } as const;
 
-export type UniversityFilter = "capella" | "walden" | "other" | "";
+const GCU_TAG_RE = /^GCU[_-]CON[_-]3P$/i;
+
+export type UniversityFilter = "capella" | "walden" | "gcu_con_3p" | "other" | "";
+
+function isGcuFilter(key: string): boolean {
+  return key === "gcu_con_3p" || key === "gcu-con-3p" || key === "gcu_con-3p";
+}
 
 function domainRegex(domains: readonly string[]): RegExp {
   const escaped = domains.map((d) => escapeRegex(d)).join("|");
@@ -28,13 +34,19 @@ function universityClause(
     return { $or: [{ email: re }, { upn: re }] };
   }
 
+  if (isGcuFilter(key)) {
+    return { tag: GCU_TAG_RE };
+  }
+
   if (key === "other") {
     const allDomains = [
       ...UNIVERSITY_DOMAINS.capella,
       ...UNIVERSITY_DOMAINS.walden,
     ];
     const re = domainRegex(allDomains);
-    return { $nor: [{ email: re }, { upn: re }] };
+    return {
+      $nor: [{ email: re }, { upn: re }, { tag: GCU_TAG_RE }],
+    };
   }
 
   return null;
@@ -54,6 +66,7 @@ export function serializeRecord(
     email: record.email ?? "",
     upn: record.upn ?? "",
     type: record.type ?? "",
+    tag: record.tag ?? "",
     sourceUrl: record.sourceUrl ?? "",
     fingerprint: record.fingerprint,
     createdAt: toIso(record.createdAt),
@@ -82,7 +95,7 @@ function buildFilter(opts: { jobId?: string; q?: string; university?: string }) 
   if (query) {
     const re = new RegExp(escapeRegex(query), "i");
     parts.push({
-      $or: [{ name: re }, { email: re }, { upn: re }, { type: re }],
+      $or: [{ name: re }, { email: re }, { upn: re }, { type: re }, { tag: re }],
     });
   }
 

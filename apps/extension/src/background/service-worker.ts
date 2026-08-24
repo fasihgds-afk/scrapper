@@ -78,14 +78,77 @@ function assertScrapableUrl(url: string | undefined): void {
 async function injectContent(tabId: number): Promise<void> {
   try {
     await chrome.scripting.executeScript({
-      target: { tabId },
+      target: { tabId, allFrames: true },
       files: ["content.js"],
     });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      `Could not attach to page (${msg}). Refresh the website tab, keep it focused, then click Start again.`,
-    );
+  } catch {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ["content.js"],
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Could not attach to page (${msg}). Refresh the website tab, keep it focused, then click Start again.`,
+      );
+    }
+  }
+}
+
+/** Use the GCU members adapter when this group is on screen, even if Site key is still walden. */
+async function resolveJobSiteKey(tabId: number, fallback: string): Promise<string> {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () =>
+        /GCU[-_]CON[-_]3P/i.test(
+          `${document.title}\n${(document.body?.innerText ?? "").slice(0, 4000)}`,
+        ),
+    });
+    if (results.some((r) => r.result === true)) return "gcu_con_3p";
+  } catch {
+    // page may still be loading
+  }
+  return fallback;
+}
+async function findMemberListFrameId(tabId: number): Promise<number | undefined> {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () => {
+        const selectors = [
+          ".ms-Persona",
+          "[data-automationid='Persona']",
+          ".fui-Persona",
+          ".ms-DetailsRow[role='row']",
+          "[data-automationid='DetailsRow']",
+          ".ms-List-cell",
+          "div[role='listitem']",
+        ];
+        let max = 0;
+        for (const sel of selectors) {
+          try {
+            max = Math.max(max, document.querySelectorAll(sel).length);
+          } catch {
+            // skip
+          }
+        }
+        return max;
+      },
+    });
+    let bestFrameId: number | undefined;
+    let bestCount = 0;
+    for (const entry of results) {
+      const count = Number(entry.result ?? 0);
+      if (count > bestCount) {
+        bestCount = count;
+        bestFrameId = entry.frameId;
+      }
+    }
+    return bestCount > 0 ? bestFrameId : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -153,7 +216,29 @@ async function sendToContent(message: unknown, tabId?: number) {
   assertScrapableUrl(tab.url);
   const id = tab.id!;
   await ensureContentScript(id);
-  return chrome.tabs.sendMessage(id, message);
+
+  const type = (message as { type?: string }).type;
+  let frameId: number | undefined;
+  if (type === "SCRAPER_START") {
+    frameId = await findMemberListFrameId(id);
+    await saveState({ scrapeFrameId: frameId ?? null });
+  } else {
+    const state = await loadState();
+    frameId = state.scrapeFrameId ?? undefined;
+  }
+
+  try {
+    return await chrome.tabs.sendMessage(
+      id,
+      message,
+      frameId != null ? { frameId } : {},
+    );
+  } catch (err) {
+    if (frameId != null) {
+      return chrome.tabs.sendMessage(id, message);
+    }
+    throw err;
+  }
 }
 
 async function enqueueAndSendBatch(
@@ -334,11 +419,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           const tab = await resolveTab(message.tabId);
           assertScrapableUrl(tab.url);
           const sourceUrl = tab.url as string;
+          const siteKey = await resolveJobSiteKey(tab.id!, state.siteKey);
 
           const job = await api.createJob({
-            name: message.name,
+            name: siteKey === "gcu_con_3p" ? "GCU_CON-3P" : message.name,
             sourceUrl,
-            siteKey: state.siteKey,
+            siteKey,
           });
 
           try {
@@ -346,7 +432,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
               {
                 type: "SCRAPER_START",
                 jobId: job.jobId,
-                siteKey: state.siteKey,
+                siteKey,
                 batchSize: state.batchSize,
               },
               tab.id,

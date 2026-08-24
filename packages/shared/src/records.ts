@@ -18,6 +18,7 @@ export const scrapedRecordSchema = z.object({
   email: z.string().default(""),
   upn: z.string().default(""),
   type: z.string().default(""),
+  tag: z.string().max(100).default(""),
   sourceUrl: z.string().url().optional().or(z.literal("")),
   fingerprint: z.string().min(1).optional(),
 });

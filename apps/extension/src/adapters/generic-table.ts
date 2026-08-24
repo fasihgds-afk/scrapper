@@ -109,6 +109,7 @@ export class GenericTableAdapter implements SiteAdapter {
 
     if (!name && !email && !upn) return null;
 
+    const tag = (this.config.tag ?? "").trim();
     const stableId =
       el.getAttribute("data-item-key") ||
       el.getAttribute("data-selection-index") ||
@@ -117,18 +118,20 @@ export class GenericTableAdapter implements SiteAdapter {
       "";
 
     // Prefer content fingerprint for virtualized lists (DOM ids get reused)
-    const fingerprint = buildFingerprint(
+    const body = buildFingerprint(
       { name, email, upn, type },
       this.config.fingerprint,
     );
+    const fingerprint = tag ? `${tag}|${body || stableId}` : body || stableId;
 
     return {
       name,
       email,
       upn,
       type,
+      tag,
       sourceUrl,
-      fingerprint: fingerprint || stableId,
+      fingerprint,
     };
   }
 

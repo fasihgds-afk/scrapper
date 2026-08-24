@@ -63,6 +63,7 @@ const recordSchema = new Schema(
     email: { type: String, default: "", index: true },
     upn: { type: String, default: "" },
     type: { type: String, default: "" },
+    tag: { type: String, default: "", index: true },
     sourceUrl: { type: String, default: "" },
     fingerprint: { type: String, required: true, unique: true },
   },
@@ -71,6 +72,7 @@ const recordSchema = new Schema(
 
 recordSchema.index({ email: 1, upn: 1 });
 recordSchema.index({ createdAt: -1 });
+recordSchema.index({ tag: 1, name: 1, _id: 1 });
 
 export type RecordDoc = InferSchemaType<typeof recordSchema> & {
   _id: Types.ObjectId;
