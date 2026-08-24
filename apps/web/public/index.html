@@ -977,7 +977,16 @@
 
       try {
         const res = await fetch(`/records/export.csv${queryString(range)}`);
-        if (!res.ok) throw new Error("Failed to load contacts for copy");
+        if (!res.ok) {
+          let detail = "";
+          try {
+            const payload = await res.json();
+            detail = payload?.error ? `: ${payload.error}` : "";
+          } catch {
+            /* ignore non-JSON error bodies */
+          }
+          throw new Error(`Failed to load contacts for copy${detail}`);
+        }
         const csv = await res.text();
         const text = csvToCopyText(csv);
         const rows = Math.max(0, text.split("\n").length - 1);
