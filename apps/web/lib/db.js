@@ -53,6 +53,10 @@ const recordSchema = new mongoose.Schema(
   { timestamps: { createdAt: true, updatedAt: false }, collection: "records" },
 );
 
+// Speeds Capella/Walden A–Z export (sort + domain filter).
+recordSchema.index({ name: 1, email: 1, _id: 1 });
+recordSchema.index({ email: 1 });
+
 const ScrapingJob =
   mongoose.models.ScrapingJob || mongoose.model("ScrapingJob", jobSchema);
 const Record =
@@ -67,9 +71,14 @@ const UNIVERSITY_DOMAINS = {
   walden: ["waldenu.edu"],
 };
 
-function domainRegex(domains) {
-  const escaped = domains.map((d) => escapeRegex(d)).join("|");
-  return new RegExp(`@(?:[\\w.-]+\\.)?(?:${escaped})$`, "i");
+/** Suffix match on domain — cheaper than nested groups; still matches mail.capella.edu. */
+function domainSuffixClauses(domains) {
+  const clauses = [];
+  for (const domain of domains) {
+    const re = new RegExp(`${escapeRegex(domain)}$`, "i");
+    clauses.push({ email: re }, { upn: re });
+  }
+  return clauses;
 }
 
 function universityClause(university) {
@@ -77,8 +86,7 @@ function universityClause(university) {
   if (!key) return null;
 
   if (key === "capella" || key === "walden") {
-    const re = domainRegex(UNIVERSITY_DOMAINS[key]);
-    return { $or: [{ email: re }, { upn: re }] };
+    return { $or: domainSuffixClauses(UNIVERSITY_DOMAINS[key]) };
   }
 
   if (key === "other") {
@@ -86,9 +94,8 @@ function universityClause(university) {
       ...UNIVERSITY_DOMAINS.capella,
       ...UNIVERSITY_DOMAINS.walden,
     ];
-    const re = domainRegex(allDomains);
     return {
-      $nor: [{ email: re }, { upn: re }],
+      $nor: domainSuffixClauses(allDomains),
     };
   }
 

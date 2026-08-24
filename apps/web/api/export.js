@@ -1,7 +1,9 @@
 const { connectMongo, Record, buildRecordFilter, sendText, sendJson } = require("../lib/db");
 
-const MAX_EXPORT_ROWS = 5000;
-const BATCH_SIZE = 400;
+/** Keep serverless exports small enough to finish under Vercel time limits. */
+const MAX_EXPORT_ROWS = 2000;
+const DEDUPE_PULL_FACTOR = 6;
+const MAX_PULL = 12000;
 
 function csvCell(value) {
   return `"${String(value).replace(/"/g, '""')}"`;
@@ -15,68 +17,46 @@ function cleanEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function compareRows(a, b) {
+  const byName = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  if (byName !== 0) return byName;
+  return a.email.localeCompare(b.email);
+}
+
 /**
- * Walk name-sorted records in small keyset pages (no giant skip/limit).
- * Dedupes first, then applies from/to on unique contacts — same semantics as the Fastify API.
+ * Capella is large: a Mongo name-sort over the domain filter often exceeds
+ * Vercel’s time limit (Walden is small enough to pass).
+ *
+ * Strategy: pull a capped window with no Mongo sort (query can stop early),
+ * dedupe, sort A–Z in memory, then apply from/to.
  */
 async function collectUniqueRows(filter, { skip, maxRows }) {
+  const pull = Math.min(
+    Math.max((skip + maxRows) * DEDUPE_PULL_FACTOR, maxRows),
+    MAX_PULL,
+  );
+
+  const docs = await Record.find(filter)
+    .select({ name: 1, email: 1 })
+    .limit(pull)
+    .maxTimeMS(50_000)
+    .lean();
+
   const seen = new Set();
-  const rows = [];
-  let uniqueIndex = 0;
-  let lastName = null;
-  let lastEmail = null;
-  let lastId = null;
+  const unique = [];
 
-  for (;;) {
-    const pageFilter =
-      lastId === null
-        ? filter
-        : {
-            $and: [
-              filter,
-              {
-                $or: [
-                  { name: { $gt: lastName } },
-                  { name: lastName, email: { $gt: lastEmail } },
-                  { name: lastName, email: lastEmail, _id: { $gt: lastId } },
-                ],
-              },
-            ],
-          };
-
-    const docs = await Record.find(pageFilter)
-      .sort({ name: 1, email: 1, _id: 1 })
-      .limit(BATCH_SIZE)
-      .lean();
-
-    if (docs.length === 0) break;
-
-    for (const doc of docs) {
-      const name = cleanName(doc.name);
-      const email = cleanEmail(doc.email);
-      if (!name && !email) continue;
-
-      const key = email || `name:${name.toLowerCase()}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      uniqueIndex += 1;
-      if (uniqueIndex <= skip) continue;
-
-      rows.push({ name, email });
-      if (rows.length >= maxRows) {
-        return rows;
-      }
-    }
-
-    const last = docs[docs.length - 1];
-    lastName = String(last.name ?? "");
-    lastEmail = String(last.email ?? "");
-    lastId = last._id;
-    if (docs.length < BATCH_SIZE) break;
+  for (const doc of docs) {
+    const name = cleanName(doc.name);
+    const email = cleanEmail(doc.email);
+    if (!name && !email) continue;
+    const key = email || `name:${name.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push({ name, email });
   }
 
-  return rows;
+  unique.sort(compareRows);
+  return unique.slice(skip, skip + maxRows);
 }
 
 module.exports = async function handler(req, res) {
