@@ -81,11 +81,13 @@ export class ScraperEngine {
       this.buffer.restoreSeen(options.restore.seenFingerprints);
     }
 
+    let idleFlushes = 0;
     this.extractor = new RecordExtractor(this.adapter);
     this.observer = new DynamicContentObserver((nodes) => {
       if (this.status !== "running") return;
       const records = this.extractor!.extractFromNodes(nodes, location.href);
       this.ingest(records, options.onStatus);
+      void this.buffer?.flushReady();
     });
 
     const shouldWait = createShouldWait(this.adapter.config.uiGuard);
@@ -96,8 +98,19 @@ export class ScraperEngine {
       () => this.buffer!.seenCount,
       async () => {
         // Fluent/virtualized lists reuse DOM nodes — rescan visible rows every tick
-        if (this.status !== "running" || !this.extractor) return;
+        if (this.status !== "running" || !this.extractor || !this.buffer) return;
+        const before = this.buffer.seenCount;
         this.ingest(this.extractor.extractAll(location.href), options.onStatus);
+        await this.buffer.flushReady();
+        if (this.buffer.seenCount === before) {
+          idleFlushes += 1;
+          if (idleFlushes >= 3) {
+            await this.buffer.flush();
+            idleFlushes = 0;
+          }
+        } else {
+          idleFlushes = 0;
+        }
       },
       shouldWait,
     );
@@ -111,6 +124,7 @@ export class ScraperEngine {
 
     // Initial sweep of already-rendered rows
     this.ingest(this.extractor.extractAll(location.href), options.onStatus);
+    await this.buffer.flushReady();
     this.observer.start(document.body);
 
     const result = await this.scroller.run();

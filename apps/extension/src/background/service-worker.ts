@@ -2,6 +2,7 @@ import { ApiClient } from "../lib/api-client";
 import {
   loadState,
   saveState,
+  updateState,
   type ExtensionState,
   type PendingBatch,
 } from "../lib/storage";
@@ -241,12 +242,12 @@ async function sendToContent(message: unknown, tabId?: number) {
   }
 }
 
-async function enqueueAndSendBatch(
+async function persistPendingBatch(
   jobId: string,
   records: ExtractedRecord[],
   checkpoint: EngineProgress,
 ): Promise<void> {
-  const state = await syncApiBase();
+  await syncApiBase();
   const pending: PendingBatch = {
     externalBatchId: uuid(),
     records,
@@ -258,73 +259,68 @@ async function enqueueAndSendBatch(
     attempts: 0,
   };
 
-  const pendingBatches = [...state.pendingBatches, pending];
-  const seenFingerprints = [
-    ...state.seenFingerprints,
-    ...records.map((r) => r.fingerprint),
-  ];
-
-  await saveState({
-    pendingBatches,
-    seenFingerprints,
+  await updateState((state) => ({
+    pendingBatches: [...state.pendingBatches, pending],
+    seenFingerprints: [
+      ...state.seenFingerprints,
+      ...records.map((r) => r.fingerprint),
+    ],
     localFound: checkpoint.localFound,
     scrollY: checkpoint.scrollY,
     lastFingerprint: checkpoint.lastFingerprint,
     status: checkpoint.status,
-  });
-
-  await flushPendingBatches(jobId);
+  }));
 }
 
 function batchRetryDelayMs(attempts: number): number {
-  // 1s, 2s, 4s, ... capped at 60s, plus 0–500ms jitter
   const base = Math.min(60_000, 1000 * 2 ** Math.max(0, attempts));
   const jitter = Math.floor(Math.random() * 500);
   return base + jitter;
 }
 
+let flushingBatches = false;
+
 async function flushPendingBatches(jobId: string): Promise<void> {
-  const state = await syncApiBase();
-  const remaining: PendingBatch[] = [];
-  const now = Date.now();
+  if (flushingBatches) return;
+  flushingBatches = true;
+  try {
+    const state = await syncApiBase();
+    const now = Date.now();
+    const sentIds = new Set<string>();
+    const retries = new Map<string, PendingBatch>();
 
-  for (const batch of state.pendingBatches) {
-    if (batch.nextRetryAt && batch.nextRetryAt > now) {
-      remaining.push(batch);
-      continue;
-    }
+    for (const batch of state.pendingBatches) {
+      if (batch.nextRetryAt && batch.nextRetryAt > now) continue;
 
-    try {
-      await api.sendBatch(jobId, {
-        externalBatchId: batch.externalBatchId,
-        records: batch.records,
-        checkpoint: batch.checkpoint,
-      });
-    } catch (err) {
-      const attempts = batch.attempts + 1;
-      if (attempts < 8) {
-        remaining.push({
+      try {
+        await api.sendBatch(jobId, {
+          externalBatchId: batch.externalBatchId,
+          records: batch.records,
+          checkpoint: batch.checkpoint,
+        });
+        sentIds.add(batch.externalBatchId);
+      } catch (err) {
+        const attempts = batch.attempts + 1;
+        retries.set(batch.externalBatchId, {
           ...batch,
           attempts,
-          nextRetryAt: now + batchRetryDelayMs(attempts),
+          nextRetryAt:
+            now + (attempts < 8 ? batchRetryDelayMs(attempts) : 5 * 60_000),
         });
-      } else {
-        // Never silently drop — keep retrying on a long interval
-        console.error(
-          "[scrapper] batch send failed after 8 attempts; keeping for retry in 5m",
-          err,
-        );
-        remaining.push({
-          ...batch,
-          attempts,
-          nextRetryAt: now + 5 * 60_000,
-        });
+        console.error("[scrapper] batch send failed", err);
       }
-      console.error("[scrapper] batch send failed", err);
     }
-  }
 
-  await saveState({ pendingBatches: remaining });
+    if (sentIds.size === 0 && retries.size === 0) return;
+
+    await updateState((current) => ({
+      pendingBatches: current.pendingBatches
+        .filter((b) => !sentIds.has(b.externalBatchId))
+        .map((b) => retries.get(b.externalBatchId) ?? b),
+    }));
+  } finally {
+    flushingBatches = false;
+  }
 }
 
 async function pollServerProgress(jobId: string): Promise<void> {
@@ -563,12 +559,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             records: ExtractedRecord[];
             checkpoint: EngineProgress;
           };
-          await enqueueAndSendBatch(jobId, records, checkpoint);
+          await persistPendingBatch(jobId, records, checkpoint);
+          sendResponse({ ok: true });
+          void flushPendingBatches(jobId);
           if (checkpoint.status === "completed" || checkpoint.status === "stopped") {
-            await persistTerminalStatus(jobId, checkpoint);
+            void persistTerminalStatus(jobId, checkpoint);
             await saveState({ status: checkpoint.status });
           }
-          sendResponse({ ok: true });
           break;
         }
         case "STATUS_FROM_CONTENT":

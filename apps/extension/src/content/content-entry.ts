@@ -32,6 +32,24 @@ function stopHeartbeat(): void {
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function sendRuntime(message: unknown, attempts = 6): Promise<void> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await chrome.runtime.sendMessage(message);
+      return;
+    } catch (err) {
+      lastErr = err;
+      await sleep(300 * 2 ** i);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("extension message failed");
+}
+
 function startHeartbeat(): void {
   stopHeartbeat();
   window.__scrapperHeartbeat = setInterval(() => {
@@ -59,7 +77,7 @@ if (!window.__scrapperBound) {
               batchSize: message.batchSize,
               restore: message.restore,
               onBatch: async (records, checkpoint) => {
-                await chrome.runtime.sendMessage({
+                await sendRuntime({
                   type: "BATCH_FROM_CONTENT",
                   jobId: message.jobId,
                   records,

@@ -59,15 +59,39 @@ export async function loadState(): Promise<ExtensionState> {
   return { ...DEFAULT_STATE, ...(result.scrapperState as ExtensionState | undefined) };
 }
 
-export async function saveState(patch: Partial<ExtensionState>): Promise<ExtensionState> {
-  const current = await loadState();
-  const next = { ...current, ...patch };
-  // Cap fingerprint snapshot to keep storage bounded
+let writeLock = Promise.resolve();
+
+function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = writeLock.then(fn, fn);
+  writeLock = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+async function writeState(next: ExtensionState): Promise<ExtensionState> {
   if (next.seenFingerprints.length > 10_000) {
     next.seenFingerprints = next.seenFingerprints.slice(-10_000);
   }
   await chrome.storage.local.set({ scrapperState: next });
   return next;
+}
+
+export async function saveState(patch: Partial<ExtensionState>): Promise<ExtensionState> {
+  return withWriteLock(async () => {
+    const current = await loadState();
+    return writeState({ ...current, ...patch });
+  });
+}
+
+export async function updateState(
+  updater: (current: ExtensionState) => Partial<ExtensionState>,
+): Promise<ExtensionState> {
+  return withWriteLock(async () => {
+    const current = await loadState();
+    return writeState({ ...current, ...updater(current) });
+  });
 }
 
 export async function clearJobState(): Promise<ExtensionState> {

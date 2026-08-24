@@ -23,8 +23,8 @@
     "delayMsMax": 2600,
     "stepPxMin": 400,
     "stepPxMax": 800,
-    "idleRounds": 40,
-    "stallRetries": 10
+    "idleRounds": 20,
+    "stallRetries": 8
   },
   "uiGuard": {
     "loadingSelectors": [".ms-Spinner", "[role='progressbar']", ".ms-Spinner-circle"],

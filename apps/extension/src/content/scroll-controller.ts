@@ -57,9 +57,34 @@ function getScrollMetrics(target: Element | Window) {
 function scrollBy(target: Element | Window, amount: number): void {
   if (target === window) {
     window.scrollBy(0, amount);
-  } else {
-    (target as Element).scrollTop += amount;
+    return;
   }
+  const el = target as HTMLElement;
+  const next = Math.min(el.scrollHeight, (el.scrollTop || 0) + amount);
+  el.scrollTop = next;
+  el.dispatchEvent(new Event("scroll", { bubbles: true }));
+  try {
+    el.dispatchEvent(
+      new WheelEvent("wheel", {
+        deltaY: amount,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      }),
+    );
+  } catch {
+    // some environments block synthetic WheelEvent
+  }
+}
+
+function scrollLastRowIntoView(target: Element | Window): void {
+  if (target === window) return;
+  const el = target as Element;
+  const rows = el.querySelectorAll(
+    "[role='listitem'], .ms-List-cell, .ms-Persona, .ms-DetailsRow[role='row']",
+  );
+  const last = rows[rows.length - 1] as HTMLElement | undefined;
+  last?.scrollIntoView({ block: "end", inline: "nearest" });
 }
 
 export type ShouldWaitFn = () => Promise<boolean>;
@@ -156,44 +181,27 @@ export class ScrollController {
         this.idleRounds = 0;
         this.stallAttempts = 0;
         this.lastSeenCount = seen;
-      } else {
-        this.idleRounds += 1;
-      }
-
-      if (this.idleRounds < this.options.idleRounds) continue;
-
-      const metrics = getScrollMetrics(this.getTarget());
-      const notAtBottom =
-        metrics.scrollTop + metrics.clientHeight < metrics.scrollHeight - 20;
-
-      // Still more list to scroll — never mark complete. Keep moving.
-      if (notAtBottom) {
-        this.idleRounds = Math.max(1, Math.floor(this.options.idleRounds / 2));
-        scrollBy(this.getTarget(), Math.max(step, metrics.clientHeight));
-        await sleep(delay);
-        if (this.onTick) await this.onTick();
-        const after = this.getSeenCount();
-        if (after > this.lastSeenCount) {
-          this.idleRounds = 0;
-          this.stallAttempts = 0;
-          this.lastSeenCount = after;
-        }
         continue;
       }
 
+      this.idleRounds += 1;
+      if (this.idleRounds < this.options.idleRounds) continue;
+
+      // No new unique rows for idleRounds ticks. Outlook virtual lists often
+      // still report "not at bottom" forever — do a few extra nudges, then finish.
       if (this.stallAttempts < stallRetries) {
         this.stallAttempts += 1;
-        scrollBy(this.getTarget(), metrics.scrollHeight);
-        await sleep(maxDelayMs(this.options) * 2);
+        const metrics = getScrollMetrics(this.getTarget());
+        scrollBy(this.getTarget(), Math.max(step, metrics.clientHeight));
+        scrollLastRowIntoView(this.getTarget());
+        await sleep(maxDelayMs(this.options));
         if (this.onTick) await this.onTick();
         const after = this.getSeenCount();
         if (after > this.lastSeenCount) {
           this.idleRounds = 0;
           this.stallAttempts = 0;
           this.lastSeenCount = after;
-          continue;
         }
-        this.idleRounds = Math.floor(this.options.idleRounds / 2);
         continue;
       }
 

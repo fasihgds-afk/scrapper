@@ -5,6 +5,10 @@ export type FlushHandler = (records: ExtractedRecord[]) => void | Promise<void>;
 /** Soft cap so very long runs do not grow an unbounded Set in the content tab. */
 const DEFAULT_SEEN_CAP = 25_000;
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class DedupeBuffer {
   private seen = new Set<string>();
   private seenOrder: string[] = [];
@@ -14,6 +18,7 @@ export class DedupeBuffer {
   private batchSize: number;
   private onFlush: FlushHandler;
   private seenCap: number;
+  private flushing = false;
 
   constructor(
     batchSize: number,
@@ -64,9 +69,6 @@ export class DedupeBuffer {
     this.trackSeen(record.fingerprint);
     this.acceptedTotal += 1;
     this.pending.push(record);
-    if (this.pending.length >= this.batchSize) {
-      void this.flush();
-    }
     return true;
   }
 
@@ -78,10 +80,49 @@ export class DedupeBuffer {
     return added;
   }
 
+  /** Send full batches only. Leaves a remainder under batchSize. */
+  async flushReady(): Promise<number> {
+    let sent = 0;
+    while (this.pending.length >= this.batchSize) {
+      const n = await this.sendSlice(this.batchSize);
+      if (n === 0) break;
+      sent += n;
+    }
+    return sent;
+  }
+
   async flush(): Promise<number> {
     if (this.pending.length === 0) return 0;
-    const batch = this.pending.splice(0, this.pending.length);
-    await this.onFlush(batch);
-    return batch.length;
+    return this.sendSlice(this.pending.length);
+  }
+
+  private async sendSlice(count: number): Promise<number> {
+    if (this.flushing) return 0;
+    if (this.pending.length === 0) return 0;
+    this.flushing = true;
+    const batch = this.pending.splice(0, Math.min(count, this.pending.length));
+    try {
+      await this.sendWithRetry(batch);
+      return batch.length;
+    } catch {
+      this.pending.unshift(...batch);
+      return 0;
+    } finally {
+      this.flushing = false;
+    }
+  }
+
+  private async sendWithRetry(batch: ExtractedRecord[]): Promise<void> {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      try {
+        await this.onFlush(batch);
+        return;
+      } catch (err) {
+        lastErr = err;
+        await sleep(400 * 2 ** attempt);
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("batch flush failed");
   }
 }
