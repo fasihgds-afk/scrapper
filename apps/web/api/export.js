@@ -1,9 +1,9 @@
 const { connectMongo, Record, buildRecordFilter, sendText, sendJson } = require("../lib/db");
 
 /** Keep serverless exports small enough to finish under Vercel time limits. */
-const MAX_EXPORT_ROWS = 2000;
+const MAX_EXPORT_ROWS = 10000;
 const DEDUPE_PULL_FACTOR = 6;
-const MAX_PULL = 12000;
+const MAX_PULL = 60000;
 
 function csvCell(value) {
   return `"${String(value).replace(/"/g, '""')}"`;
