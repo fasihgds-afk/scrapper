@@ -1,9 +1,7 @@
 const { connectMongo, Record, buildRecordFilter, sendText, sendJson } = require("../lib/db");
 
-/** Keep serverless exports small enough to finish under Vercel time limits. */
+/** Max contacts per Copy / CSV request (any From–To window). */
 const MAX_EXPORT_ROWS = 10000;
-const DEDUPE_PULL_FACTOR = 6;
-const MAX_PULL = 60000;
 
 function csvCell(value) {
   return `"${String(value).replace(/"/g, '""')}"`;
@@ -24,38 +22,26 @@ function compareRows(a, b) {
 }
 
 /**
- * Capella is large: a Mongo name-sort over the domain filter often exceeds
- * Vercel’s time limit (Walden is small enough to pass).
- *
- * Strategy: pull a capped window with no Mongo sort (query can stop early),
- * dedupe, sort A–Z in memory, then apply from/to.
+ * Build the full unique A–Z list for the filter, then slice [skip, skip+maxRows).
+ * Needed so ranges like 10000–19999 work, not only 1–10000.
  */
 async function collectUniqueRows(filter, { skip, maxRows }) {
-  const pull = Math.min(
-    Math.max((skip + maxRows) * DEDUPE_PULL_FACTOR, maxRows),
-    MAX_PULL,
-  );
-
-  const docs = await Record.find(filter)
+  const seen = new Map();
+  const cursor = Record.find(filter)
     .select({ name: 1, email: 1 })
-    .limit(pull)
-    .maxTimeMS(50_000)
-    .lean();
+    .maxTimeMS(55_000)
+    .lean()
+    .cursor({ batchSize: 1500 });
 
-  const seen = new Set();
-  const unique = [];
-
-  for (const doc of docs) {
+  for await (const doc of cursor) {
     const name = cleanName(doc.name);
     const email = cleanEmail(doc.email);
     if (!name && !email) continue;
     const key = email || `name:${name.toLowerCase()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push({ name, email });
+    if (!seen.has(key)) seen.set(key, { name, email });
   }
 
-  unique.sort(compareRows);
+  const unique = [...seen.values()].sort(compareRows);
   return unique.slice(skip, skip + maxRows);
 }
 
@@ -78,6 +64,7 @@ module.exports = async function handler(req, res) {
     const toRaw = Math.floor(Number(url.searchParams.get("to") ?? fromRaw));
     const from = Math.max(1, Number.isFinite(fromRaw) ? fromRaw : 1);
     let to = Math.max(from, Number.isFinite(toRaw) ? toRaw : from);
+    // Auto-cap any window to 10k rows (e.g. 10000–20000 → 10000–19999)
     to = Math.min(to, from + MAX_EXPORT_ROWS - 1);
     const skip = from - 1;
     const maxRows = to - from + 1;

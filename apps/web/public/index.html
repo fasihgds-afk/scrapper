@@ -752,7 +752,7 @@
   <div class="modal-root" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
     <div class="modal">
       <h2 id="exportTitle">Export contacts</h2>
-      <p>Pick a range, then copy Name + Email or download CSV. Sorted A–Z by name.</p>
+      <p>Pick any range up to 10,000 rows, then copy Name + Email or download CSV. Sorted A–Z by name.</p>
       <div class="presets">
         <button type="button" data-from="1" data-to="100">1–100</button>
         <button type="button" data-from="1" data-to="500">1–500</button>
@@ -882,6 +882,8 @@
       el.pagerInfo.innerHTML = `<span class="mini-spin" aria-hidden="true"></span> Loading`;
     }
 
+    const COPY_LIMIT = 10000;
+
     function updateExportHint() {
       const from = Number(el.exportFrom.value);
       const to = Number(el.exportTo.value);
@@ -891,19 +893,19 @@
         el.exportHint.classList.add("error");
         return false;
       }
-      const count = to - from + 1;
-      if (count > 10000) {
-        el.exportHint.textContent = "Copy/export limit is 10,000 rows per request.";
-        el.exportHint.classList.add("error");
-        return false;
-      }
-      const capped = total > 0 ? Math.min(to, total) : to;
-      const actual = total > 0 ? Math.max(0, capped - from + 1) : count;
+      const rawCount = to - from + 1;
+      const exportTo = rawCount > COPY_LIMIT ? from + COPY_LIMIT - 1 : to;
+      const cappedNote =
+        rawCount > COPY_LIMIT
+          ? ` (will copy ${from.toLocaleString()}–${exportTo.toLocaleString()}, max ${COPY_LIMIT.toLocaleString()} rows)`
+          : "";
+      const capped = total > 0 ? Math.min(exportTo, total) : exportTo;
+      const actual = total > 0 ? Math.max(0, capped - from + 1) : exportTo - from + 1;
       el.exportHint.classList.remove("error");
       el.exportHint.textContent =
         total > 0
-          ? `Will export ~${actual.toLocaleString()} of ${total.toLocaleString()} records`
-          : `Will export rows ${from.toLocaleString()}–${to.toLocaleString()}`;
+          ? `Will export ~${actual.toLocaleString()} of ${total.toLocaleString()} records${cappedNote}`
+          : `Will export rows ${from.toLocaleString()}–${exportTo.toLocaleString()}${cappedNote}`;
       return true;
     }
 
@@ -939,7 +941,9 @@
     function getExportRange() {
       if (!updateExportHint()) return null;
       const from = Math.max(1, Math.floor(Number(el.exportFrom.value)));
-      const to = Math.max(from, Math.floor(Number(el.exportTo.value)));
+      let to = Math.max(from, Math.floor(Number(el.exportTo.value)));
+      to = Math.min(to, from + COPY_LIMIT - 1);
+      el.exportTo.value = String(to);
       return { from, to };
     }
 
@@ -1264,7 +1268,7 @@
 
     el.presetAll.addEventListener("click", () => {
       el.exportFrom.value = "1";
-      el.exportTo.value = String(Math.max(1, Math.min(10000, state.total || 1)));
+      el.exportTo.value = String(Math.max(1, Math.min(COPY_LIMIT, state.total || 1)));
       updateExportHint();
     });
 
