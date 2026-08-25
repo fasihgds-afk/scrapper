@@ -8,14 +8,30 @@ function escapeRegex(value: string): string {
 const UNIVERSITY_DOMAINS = {
   capella: ["capella.edu", "capellauniversity.edu"],
   walden: ["waldenu.edu"],
+  liberty: ["liberty.edu"],
 } as const;
 
 const GCU_TAG_RE = /^GCU[_-]CON[_-]3P$/i;
+const LIBERTY_TAG_RE = /^LIBERTY[_-]TRACK[_-]FIELD$/i;
 
-export type UniversityFilter = "capella" | "walden" | "gcu_con_3p" | "other" | "";
+export type UniversityFilter =
+  | "capella"
+  | "walden"
+  | "gcu_con_3p"
+  | "liberty"
+  | "other"
+  | "";
 
 function isGcuFilter(key: string): boolean {
   return key === "gcu_con_3p" || key === "gcu-con-3p" || key === "gcu_con-3p";
+}
+
+function isLibertyFilter(key: string): boolean {
+  return (
+    key === "liberty" ||
+    key === "liberty_track_field" ||
+    key === "liberty-track-field"
+  );
 }
 
 function domainRegex(domains: readonly string[]): RegExp {
@@ -34,6 +50,13 @@ function universityClause(
     return { $or: [{ email: re }, { upn: re }] };
   }
 
+  if (isLibertyFilter(key)) {
+    const re = domainRegex(UNIVERSITY_DOMAINS.liberty);
+    return {
+      $or: [{ email: re }, { upn: re }, { tag: LIBERTY_TAG_RE }],
+    };
+  }
+
   if (isGcuFilter(key)) {
     return { tag: GCU_TAG_RE };
   }
@@ -42,10 +65,16 @@ function universityClause(
     const allDomains = [
       ...UNIVERSITY_DOMAINS.capella,
       ...UNIVERSITY_DOMAINS.walden,
+      ...UNIVERSITY_DOMAINS.liberty,
     ];
     const re = domainRegex(allDomains);
     return {
-      $nor: [{ email: re }, { upn: re }, { tag: GCU_TAG_RE }],
+      $nor: [
+        { email: re },
+        { upn: re },
+        { tag: GCU_TAG_RE },
+        { tag: LIBERTY_TAG_RE },
+      ],
     };
   }
 

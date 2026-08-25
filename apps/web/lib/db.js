@@ -71,12 +71,22 @@ function escapeRegex(value) {
 const UNIVERSITY_DOMAINS = {
   capella: ["capella.edu", "capellauniversity.edu"],
   walden: ["waldenu.edu"],
+  liberty: ["liberty.edu"],
 };
 
 const GCU_TAG_RE = /^GCU[_-]CON[_-]3P$/i;
+const LIBERTY_TAG_RE = /^LIBERTY[_-]TRACK[_-]FIELD$/i;
 
 function isGcuFilter(key) {
   return key === "gcu_con_3p" || key === "gcu-con-3p" || key === "gcu_con-3p";
+}
+
+function isLibertyFilter(key) {
+  return (
+    key === "liberty" ||
+    key === "liberty_track_field" ||
+    key === "liberty-track-field"
+  );
 }
 
 /** Suffix match on domain — cheaper than nested groups; still matches mail.capella.edu. */
@@ -97,6 +107,15 @@ function universityClause(university) {
     return { $or: domainSuffixClauses(UNIVERSITY_DOMAINS[key]) };
   }
 
+  if (isLibertyFilter(key)) {
+    return {
+      $or: [
+        ...domainSuffixClauses(UNIVERSITY_DOMAINS.liberty),
+        { tag: LIBERTY_TAG_RE },
+      ],
+    };
+  }
+
   if (isGcuFilter(key)) {
     return { tag: GCU_TAG_RE };
   }
@@ -105,9 +124,14 @@ function universityClause(university) {
     const allDomains = [
       ...UNIVERSITY_DOMAINS.capella,
       ...UNIVERSITY_DOMAINS.walden,
+      ...UNIVERSITY_DOMAINS.liberty,
     ];
     return {
-      $nor: [...domainSuffixClauses(allDomains), { tag: GCU_TAG_RE }],
+      $nor: [
+        ...domainSuffixClauses(allDomains),
+        { tag: GCU_TAG_RE },
+        { tag: LIBERTY_TAG_RE },
+      ],
     };
   }
 

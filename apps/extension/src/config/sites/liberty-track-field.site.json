@@ -1,6 +1,6 @@
 {
-  "siteKey": "gcu_con_3p",
-  "tag": "GCU_CON-3P",
+  "siteKey": "liberty_track_field",
+  "tag": "LIBERTY_TRACK_FIELD",
   "match": [
     "*://outlook.office.com/*",
     "*://outlook.office365.com/*",

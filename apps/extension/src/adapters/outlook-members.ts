@@ -144,7 +144,7 @@ export class OutlookGroupMembersAdapter extends GenericTableAdapter {
       textOf(firstMatch(el, [".ms-Persona-secondaryText", "[data-automation-key='type']"])),
     );
 
-    const tag = (this.config.tag ?? "GCU_CON-3P").trim();
+    const tag = (this.config.tag ?? "").trim();
     const fingerprint = `${tag}|${name.toLowerCase()}|${email.toLowerCase()}|${upn.toLowerCase()}`;
 
     return {

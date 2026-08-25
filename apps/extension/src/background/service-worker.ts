@@ -97,22 +97,33 @@ async function injectContent(tabId: number): Promise<void> {
   }
 }
 
-/** Use the GCU members adapter when this group is on screen, even if Site key is still walden. */
+/** Prefer group-specific members adapters when that group is on screen. */
 async function resolveJobSiteKey(tabId: number, fallback: string): Promise<string> {
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId, allFrames: true },
-      func: () =>
-        /GCU[-_]CON[-_]3P/i.test(
-          `${document.title}\n${(document.body?.innerText ?? "").slice(0, 4000)}`,
-        ),
+      func: () => {
+        const text = `${location.href}\n${document.title}\n${(document.body?.innerText ?? "").slice(0, 4000)}`;
+        if (/GCU[-_]CON[-_]3P/i.test(text)) return "gcu_con_3p";
+        if (
+          /LIBERTY[_-]TRACK[_-]FIELD/i.test(text) ||
+          /Track\s+and\s+Field\s+Prayer\s+Letter/i.test(text)
+        ) {
+          return "liberty_track_field";
+        }
+        return null;
+      },
     });
-    if (results.some((r) => r.result === true)) return "gcu_con_3p";
+    const detected = results.find((r) => typeof r.result === "string")?.result;
+    if (detected === "gcu_con_3p" || detected === "liberty_track_field") {
+      return detected;
+    }
   } catch {
     // page may still be loading
   }
   return fallback;
 }
+
 async function findMemberListFrameId(tabId: number): Promise<number | undefined> {
   try {
     const results = await chrome.scripting.executeScript({
@@ -418,7 +429,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           const siteKey = await resolveJobSiteKey(tab.id!, state.siteKey);
 
           const job = await api.createJob({
-            name: siteKey === "gcu_con_3p" ? "GCU_CON-3P" : message.name,
+            name:
+              siteKey === "gcu_con_3p"
+                ? "GCU_CON-3P"
+                : siteKey === "liberty_track_field"
+                  ? "LIBERTY_TRACK_FIELD"
+                  : message.name,
             sourceUrl,
             siteKey,
           });

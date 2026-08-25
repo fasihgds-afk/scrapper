@@ -5,12 +5,14 @@ import defaultSite from "../config/sites/default.site.json";
 import quotesSite from "../config/sites/quotes.site.json";
 import waldenSite from "../config/sites/walden.site.json";
 import gcuCon3pSite from "../config/sites/gcu-con-3p.site.json";
+import libertyTrackFieldSite from "../config/sites/liberty-track-field.site.json";
 
 const configs: Record<string, SiteConfig> = {
   default: defaultSite as SiteConfig,
   quotes: quotesSite as SiteConfig,
   walden: waldenSite as SiteConfig,
   gcu_con_3p: gcuCon3pSite as SiteConfig,
+  liberty_track_field: libertyTrackFieldSite as SiteConfig,
 };
 
 export function registerSiteConfig(config: SiteConfig): void {
@@ -23,7 +25,10 @@ export function getSiteConfig(siteKey = "default"): SiteConfig {
 
 export function createAdapter(siteKey = "default"): SiteAdapter {
   const config = getSiteConfig(siteKey);
-  if (config.siteKey === "gcu_con_3p") {
+  if (
+    config.siteKey === "gcu_con_3p" ||
+    config.siteKey === "liberty_track_field"
+  ) {
     return new OutlookGroupMembersAdapter(config);
   }
   return new GenericTableAdapter(config);
@@ -39,6 +44,7 @@ export function resolveAdapterForUrl(url: string, preferredKey?: string): SiteAd
       c.siteKey !== "default" &&
       c.siteKey !== "walden" &&
       c.siteKey !== "gcu_con_3p" &&
+      c.siteKey !== "liberty_track_field" &&
       c.match.some((m) => urlMatches(url, m)),
   );
   if (specific.length > 0) {
