@@ -72,6 +72,7 @@ const UNIVERSITY_DOMAINS = {
   capella: ["capella.edu", "capellauniversity.edu"],
   walden: ["waldenu.edu"],
   liberty: ["liberty.edu"],
+  kentucky_state: ["kysu.edu"],
 };
 
 const GCU_TAG_RE = /^GCU[_-]CON[_-]3P$/i;
@@ -86,6 +87,14 @@ function isLibertyFilter(key) {
     key === "liberty" ||
     key === "liberty_track_field" ||
     key === "liberty-track-field"
+  );
+}
+
+function isKentuckyStateFilter(key) {
+  return (
+    key === "kentucky_state" ||
+    key === "kentucky-state" ||
+    key === "kysu"
   );
 }
 
@@ -116,6 +125,10 @@ function universityClause(university) {
     };
   }
 
+  if (isKentuckyStateFilter(key)) {
+    return { $or: domainSuffixClauses(UNIVERSITY_DOMAINS.kentucky_state) };
+  }
+
   if (isGcuFilter(key)) {
     return { tag: GCU_TAG_RE };
   }
@@ -125,6 +138,7 @@ function universityClause(university) {
       ...UNIVERSITY_DOMAINS.capella,
       ...UNIVERSITY_DOMAINS.walden,
       ...UNIVERSITY_DOMAINS.liberty,
+      ...UNIVERSITY_DOMAINS.kentucky_state,
     ];
     return {
       $nor: [

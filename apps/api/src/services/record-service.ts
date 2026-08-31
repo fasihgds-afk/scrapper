@@ -9,6 +9,7 @@ const UNIVERSITY_DOMAINS = {
   capella: ["capella.edu", "capellauniversity.edu"],
   walden: ["waldenu.edu"],
   liberty: ["liberty.edu"],
+  kentucky_state: ["kysu.edu"],
 } as const;
 
 const GCU_TAG_RE = /^GCU[_-]CON[_-]3P$/i;
@@ -19,6 +20,7 @@ export type UniversityFilter =
   | "walden"
   | "gcu_con_3p"
   | "liberty"
+  | "kentucky_state"
   | "other"
   | "";
 
@@ -31,6 +33,14 @@ function isLibertyFilter(key: string): boolean {
     key === "liberty" ||
     key === "liberty_track_field" ||
     key === "liberty-track-field"
+  );
+}
+
+function isKentuckyStateFilter(key: string): boolean {
+  return (
+    key === "kentucky_state" ||
+    key === "kentucky-state" ||
+    key === "kysu"
   );
 }
 
@@ -57,6 +67,11 @@ function universityClause(
     };
   }
 
+  if (isKentuckyStateFilter(key)) {
+    const re = domainRegex(UNIVERSITY_DOMAINS.kentucky_state);
+    return { $or: [{ email: re }, { upn: re }] };
+  }
+
   if (isGcuFilter(key)) {
     return { tag: GCU_TAG_RE };
   }
@@ -66,6 +81,7 @@ function universityClause(
       ...UNIVERSITY_DOMAINS.capella,
       ...UNIVERSITY_DOMAINS.walden,
       ...UNIVERSITY_DOMAINS.liberty,
+      ...UNIVERSITY_DOMAINS.kentucky_state,
     ];
     const re = domainRegex(allDomains);
     return {
