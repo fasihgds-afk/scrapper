@@ -122,11 +122,34 @@ export type ListRecordsOptions = {
   jobId?: string;
   q?: string;
   university?: string;
+  startDate?: string;
+  endDate?: string;
   page?: number;
   limit?: number;
 };
 
-function buildFilter(opts: { jobId?: string; q?: string; university?: string }) {
+function parseDateBoundary(value?: string, isEndOfDay = false): Date | null {
+  if (!value) return null;
+  const str = value.trim();
+  if (!str) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const time = isEndOfDay ? "23:59:59.999Z" : "00:00:00.000Z";
+    const d = new Date(`${str}T${time}`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function buildFilter(opts: {
+  jobId?: string;
+  q?: string;
+  university?: string;
+  startDate?: string;
+  endDate?: string;
+}) {
   const parts: Record<string, unknown>[] = [];
 
   if (opts.jobId) {
@@ -146,6 +169,17 @@ function buildFilter(opts: { jobId?: string; q?: string; university?: string }) 
 
   const uni = universityClause(opts.university);
   if (uni) parts.push(uni);
+
+  const start = parseDateBoundary(opts.startDate, false);
+  const end = parseDateBoundary(opts.endDate, true);
+  if (start && end) {
+    const [minDate, maxDate] = start <= end ? [start, end] : [end, start];
+    parts.push({ createdAt: { $gte: minDate, $lte: maxDate } });
+  } else if (start) {
+    parts.push({ createdAt: { $gte: start } });
+  } else if (end) {
+    parts.push({ createdAt: { $lte: end } });
+  }
 
   if (parts.length === 0) return {};
   if (parts.length === 1) return parts[0]!;
@@ -189,6 +223,8 @@ export async function* iterateRecords(opts: {
   jobId?: string;
   q?: string;
   university?: string;
+  startDate?: string;
+  endDate?: string;
   batchSize?: number;
   sort?: "recent" | "name";
 }) {
@@ -272,7 +308,13 @@ export async function* iterateRecords(opts: {
 }
 
 export async function countRecords(
-  opts: { jobId?: string; q?: string; university?: string } = {},
+  opts: {
+    jobId?: string;
+    q?: string;
+    university?: string;
+    startDate?: string;
+    endDate?: string;
+  } = {},
 ) {
   const filter = buildFilter(opts);
   if (filter === null) return 0;

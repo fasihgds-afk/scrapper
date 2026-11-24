@@ -58,6 +58,8 @@ const recordSchema = new mongoose.Schema(
 recordSchema.index({ name: 1, email: 1, _id: 1 });
 recordSchema.index({ email: 1 });
 recordSchema.index({ tag: 1 });
+recordSchema.index({ createdAt: -1 });
+recordSchema.index({ createdAt: 1 });
 
 const ScrapingJob =
   mongoose.models.ScrapingJob || mongoose.model("ScrapingJob", jobSchema);
@@ -152,7 +154,27 @@ function universityClause(university) {
   return null;
 }
 
-function buildRecordFilter({ jobId, q, university }) {
+function parseDateBoundary(value, isEndOfDay = false) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+  const str = String(value).trim();
+  if (!str) return null;
+
+  // Pattern YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const time = isEndOfDay ? "23:59:59.999Z" : "00:00:00.000Z";
+    const d = new Date(`${str}T${time}`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return null;
+  return d;
+}
+
+function buildRecordFilter({ jobId, q, university, startDate, endDate }) {
   const parts = [];
 
   if (jobId && mongoose.Types.ObjectId.isValid(jobId)) {
@@ -169,6 +191,17 @@ function buildRecordFilter({ jobId, q, university }) {
 
   const uni = universityClause(university);
   if (uni) parts.push(uni);
+
+  const start = parseDateBoundary(startDate, false);
+  const end = parseDateBoundary(endDate, true);
+  if (start && end) {
+    const [minDate, maxDate] = start <= end ? [start, end] : [end, start];
+    parts.push({ createdAt: { $gte: minDate, $lte: maxDate } });
+  } else if (start) {
+    parts.push({ createdAt: { $gte: start } });
+  } else if (end) {
+    parts.push({ createdAt: { $lte: end } });
+  }
 
   if (parts.length === 0) return {};
   if (parts.length === 1) return parts[0];

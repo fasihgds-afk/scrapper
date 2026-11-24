@@ -24,6 +24,12 @@ export const recordRoutes: FastifyPluginAsync = async (app) => {
       jobId?: string;
       q?: string;
       university?: string;
+      startDate?: string;
+      endDate?: string;
+      from_date?: string;
+      to_date?: string;
+      dateFrom?: string;
+      dateTo?: string;
       page?: string;
       limit?: string;
     };
@@ -32,6 +38,8 @@ export const recordRoutes: FastifyPluginAsync = async (app) => {
       jobId: query.jobId,
       q: query.q,
       university: query.university,
+      startDate: query.startDate || query.from_date || query.dateFrom,
+      endDate: query.endDate || query.to_date || query.dateTo,
       page: query.page ? Number(query.page) : 1,
       limit: query.limit ? Number(query.limit) : 50,
     });
@@ -42,11 +50,19 @@ export const recordRoutes: FastifyPluginAsync = async (app) => {
       jobId?: string;
       q?: string;
       university?: string;
+      startDate?: string;
+      endDate?: string;
+      from_date?: string;
+      to_date?: string;
+      dateFrom?: string;
+      dateTo?: string;
     };
     const total = await countRecords({
       jobId: query.jobId,
       q: query.q,
       university: query.university,
+      startDate: query.startDate || query.from_date || query.dateFrom,
+      endDate: query.endDate || query.to_date || query.dateTo,
     });
     return { total };
   });
@@ -56,35 +72,56 @@ export const recordRoutes: FastifyPluginAsync = async (app) => {
       jobId?: string;
       q?: string;
       university?: string;
+      mode?: string;
+      startDate?: string;
+      endDate?: string;
+      from_date?: string;
+      to_date?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      dateLabel?: string;
       limit?: string;
       from?: string;
       to?: string;
     };
     const stamp = new Date().toISOString().slice(0, 10);
 
-    const hasRange = query.from !== undefined || query.to !== undefined;
+    const startDate = query.startDate || query.from_date || query.dateFrom;
+    const endDate = query.endDate || query.to_date || query.dateTo;
+    const isDateMode = query.mode === "date" || Boolean(startDate || endDate);
+
     let skip = 0;
     let maxRows = Number.POSITIVE_INFINITY;
     let filename = `contacts_${stamp}.csv`;
 
-    if (hasRange) {
-      const fromRaw = Math.floor(Number(query.from ?? 1));
-      const toRaw = Math.floor(Number(query.to ?? fromRaw));
-      const from = Math.max(1, Number.isFinite(fromRaw) ? fromRaw : 1);
-      const to = Math.max(from, Number.isFinite(toRaw) ? toRaw : from);
-      const cappedTo = Math.min(to, from + 100_000 - 1);
-      skip = from - 1;
-      maxRows = cappedTo - from + 1;
-      filename = `contacts_${stamp}_${from}-${cappedTo}.csv`;
+    if (isDateMode) {
+      skip = 0;
+      maxRows = 50_000;
+      const cleanLabel = (query.dateLabel || `${startDate || "start"}_${endDate || "end"}`)
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .slice(0, 60);
+      filename = `contacts_date_${cleanLabel}.csv`;
     } else {
-      const rawLimit = query.limit?.trim().toLowerCase();
-      const unlimited = !rawLimit || rawLimit === "all";
-      maxRows = unlimited
-        ? Number.POSITIVE_INFINITY
-        : Math.min(Math.max(Number(rawLimit) || 500, 1), 100_000);
-      filename = unlimited
-        ? `contacts_${stamp}.csv`
-        : `contacts_${stamp}_${maxRows}.csv`;
+      const hasRange = query.from !== undefined || query.to !== undefined;
+      if (hasRange) {
+        const fromRaw = Math.floor(Number(query.from ?? 1));
+        const toRaw = Math.floor(Number(query.to ?? fromRaw));
+        const from = Math.max(1, Number.isFinite(fromRaw) ? fromRaw : 1);
+        const to = Math.max(from, Number.isFinite(toRaw) ? toRaw : from);
+        const cappedTo = Math.min(to, from + 100_000 - 1);
+        skip = from - 1;
+        maxRows = cappedTo - from + 1;
+        filename = `contacts_${stamp}_${from}-${cappedTo}.csv`;
+      } else {
+        const rawLimit = query.limit?.trim().toLowerCase();
+        const unlimited = !rawLimit || rawLimit === "all";
+        maxRows = unlimited
+          ? Number.POSITIVE_INFINITY
+          : Math.min(Math.max(Number(rawLimit) || 500, 1), 100_000);
+        filename = unlimited
+          ? `contacts_${stamp}.csv`
+          : `contacts_${stamp}_${maxRows}.csv`;
+      }
     }
 
     reply.hijack();
@@ -108,6 +145,8 @@ export const recordRoutes: FastifyPluginAsync = async (app) => {
         jobId: query.jobId,
         q: query.q,
         university: query.university,
+        startDate: startDate,
+        endDate: endDate,
         sort: "name",
       })) {
         if (written >= maxRows) break;

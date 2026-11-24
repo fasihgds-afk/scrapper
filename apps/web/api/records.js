@@ -13,9 +13,19 @@ module.exports = async function handler(req, res) {
     const jobId = url.searchParams.get("jobId") || undefined;
     const q = url.searchParams.get("q") || undefined;
     const university = url.searchParams.get("university") || undefined;
+    const startDate =
+      url.searchParams.get("startDate") ||
+      url.searchParams.get("from_date") ||
+      url.searchParams.get("dateFrom") ||
+      undefined;
+    const endDate =
+      url.searchParams.get("endDate") ||
+      url.searchParams.get("to_date") ||
+      url.searchParams.get("dateTo") ||
+      undefined;
     const page = Math.max(Number(url.searchParams.get("page") || 1), 1);
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 50), 1), 100);
-    const filter = buildRecordFilter({ jobId, q, university });
+    const filter = buildRecordFilter({ jobId, q, university, startDate, endDate });
 
     const [docs, total] = await Promise.all([
       Record.find(filter)
