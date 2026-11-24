@@ -12,7 +12,7 @@
     "build:shared": "npm run build -w @scrapper/shared",
     "build:api": "npm run build -w @scrapper/api",
     "build:extension": "npm run build -w @scrapper/extension",
-    "dev:api": "npm run dev -w @scrapper/api",
+    "dev:api": "npm run build:shared && npm run dev -w @scrapper/api",
     "dev:extension": "npm run dev -w @scrapper/extension",
     "start:api": "npm run start -w @scrapper/api",
     "build:render": "npm run build:shared && npm run build:api",

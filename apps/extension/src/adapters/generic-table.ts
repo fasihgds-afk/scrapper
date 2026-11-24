@@ -14,6 +14,8 @@ function buildFingerprint(
   record: Pick<ExtractedRecord, "name" | "email" | "upn" | "type">,
   keys: SiteConfig["fingerprint"],
 ): string {
+  const cleanEmail = (record.email ?? "").trim().toLowerCase();
+  if (cleanEmail) return cleanEmail;
   return keys.map((k) => record[k] ?? "").join("|");
 }
 

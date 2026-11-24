@@ -145,7 +145,8 @@ export class OutlookGroupMembersAdapter extends GenericTableAdapter {
     );
 
     const tag = (this.config.tag ?? "").trim();
-    const fingerprint = `${tag}|${name.toLowerCase()}|${email.toLowerCase()}|${upn.toLowerCase()}`;
+    const cleanEmail = email.trim().toLowerCase();
+    const fingerprint = cleanEmail || `${tag}|${name.toLowerCase()}|${upn.toLowerCase()}`;
 
     return {
       name,

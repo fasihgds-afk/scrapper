@@ -3,11 +3,18 @@ import type { ScrapedRecord } from "@scrapper/shared";
 import { Types } from "mongoose";
 import { BatchFailureModel, RecordModel } from "../db/models.js";
 
+function escapeRegex(val: string): string {
+  return val.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function fingerprintRecord(record: ScrapedRecord): string {
-  if (record.fingerprint && record.fingerprint.trim()) {
-    return record.fingerprint.trim();
+  // Deduplicate solely on email when present (name is completely ignored)
+  const email = (record.email ?? "").trim().toLowerCase();
+  if (email) {
+    return email;
   }
-  const basis = `${record.tag}|${record.email}|${record.upn}|${record.name}|${record.type}`;
+  // When no email exists, fall back to hash of upn|type|tag (no name)
+  const basis = `${record.tag}|${record.upn}|${record.type}`;
   return createHash("sha256").update(basis).digest("hex");
 }
 
@@ -40,12 +47,75 @@ export async function ingestRecords(
   let duplicates = 0;
   let failed = 0;
 
+  // 1. Deduplicate within the incoming batch itself solely by email (ignoring name)
+  const seenBatchEmails = new Set<string>();
+  const seenBatchFps = new Set<string>();
+  const deduplicatedBatch: typeof normalized = [];
+
+  for (const r of normalized) {
+    const email = r.email.trim().toLowerCase();
+    if (email) {
+      if (seenBatchEmails.has(email)) {
+        duplicates += 1;
+        continue;
+      }
+      seenBatchEmails.add(email);
+      deduplicatedBatch.push(r);
+    } else {
+      if (seenBatchFps.has(r.fingerprint)) {
+        duplicates += 1;
+        continue;
+      }
+      seenBatchFps.add(r.fingerprint);
+      deduplicatedBatch.push(r);
+    }
+  }
+
   const chunkSize = 200;
-  for (let i = 0; i < normalized.length; i += chunkSize) {
-    const chunk = normalized.slice(i, i + chunkSize);
+  for (let i = 0; i < deduplicatedBatch.length; i += chunkSize) {
+    const chunk = deduplicatedBatch.slice(i, i + chunkSize);
+
+    // 2. Check existing records in MongoDB by email (case-insensitive) to prevent saving duplicate emails
+    const emailsInChunk = chunk
+      .map((r) => r.email.trim().toLowerCase())
+      .filter(Boolean);
+
+    let existingEmailsInDb = new Set<string>();
+    if (emailsInChunk.length > 0) {
+      try {
+        const existingDocs = await RecordModel.find({
+          email: {
+            $in: emailsInChunk.map((e) => new RegExp(`^${escapeRegex(e)}$`, "i")),
+          },
+        })
+          .select({ email: 1 })
+          .lean();
+
+        existingEmailsInDb = new Set(
+          existingDocs.map((d) => (d.email ?? "").trim().toLowerCase()),
+        );
+      } catch {
+        // Fall back to unique fingerprint index if query fails
+      }
+    }
+
+    const recordsToInsert: typeof chunk = [];
+    for (const r of chunk) {
+      const email = r.email.trim().toLowerCase();
+      if (email && existingEmailsInDb.has(email)) {
+        duplicates += 1;
+      } else {
+        recordsToInsert.push(r);
+      }
+    }
+
+    if (recordsToInsert.length === 0) {
+      continue;
+    }
+
     try {
       const result = await RecordModel.bulkWrite(
-        chunk.map((r) => ({
+        recordsToInsert.map((r) => ({
           updateOne: {
             filter: { fingerprint: r.fingerprint },
             update: {
@@ -67,9 +137,9 @@ export async function ingestRecords(
       );
       const upserted = result.upsertedCount ?? 0;
       saved += upserted;
-      duplicates += chunk.length - upserted;
+      duplicates += recordsToInsert.length - upserted;
     } catch (err) {
-      // ordered:false still throws on duplicate keys sometimes; count from writeErrors
+      // ordered:false still throws on duplicate keys; count from writeErrors
       const bulkErr = err as {
         result?: { upsertedCount?: number };
         writeErrors?: Array<{ code?: number; index?: number }>;
@@ -86,7 +156,7 @@ export async function ingestRecords(
           dupFromErrors += 1;
         } else {
           failFromErrors += 1;
-          const row = typeof we.index === "number" ? chunk[we.index] : null;
+          const row = typeof we.index === "number" ? recordsToInsert[we.index] : null;
           await BatchFailureModel.create({
             batchId: batchObjectId,
             payload: row ?? { error: "unknown row" },
@@ -100,8 +170,8 @@ export async function ingestRecords(
       failed += failFromErrors;
 
       const accounted = upserted + dupFromErrors + failFromErrors;
-      if (accounted < chunk.length) {
-        duplicates += chunk.length - accounted;
+      if (accounted < recordsToInsert.length) {
+        duplicates += recordsToInsert.length - accounted;
       }
     }
   }
