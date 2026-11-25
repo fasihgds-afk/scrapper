@@ -307,6 +307,37 @@ export async function* iterateRecords(opts: {
   }
 }
 
+/**
+ * Streams `{ name, email }` pairs using a single MongoDB cursor sorted by `_id`
+ * (always indexed), avoiding repeated keyset round-trips and in-memory sorts
+ * so 100k–200k+ records export quickly without missing any row.
+ */
+export async function* streamExportRecords(opts: {
+  jobId?: string;
+  q?: string;
+  university?: string;
+  startDate?: string;
+  endDate?: string;
+  batchSize?: number;
+}): AsyncGenerator<{ name: string; email: string }> {
+  const filter = buildFilter(opts);
+  if (filter === null) return;
+
+  const batchSize = Math.min(Math.max(opts.batchSize ?? 5000, 500), 10000);
+  const cursor = RecordModel.find(filter)
+    .select({ name: 1, email: 1, _id: 0 })
+    .sort({ _id: -1 })
+    .lean()
+    .cursor({ batchSize });
+
+  for await (const doc of cursor) {
+    yield {
+      name: String((doc as { name?: unknown }).name ?? ""),
+      email: String((doc as { email?: unknown }).email ?? ""),
+    };
+  }
+}
+
 export async function countRecords(
   opts: {
     jobId?: string;
