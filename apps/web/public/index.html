@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Scrapper Pro</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
   <style>
     :root {
       --bg: #101418;
@@ -20,15 +23,23 @@
       --teal: #3f9f90;
       --teal-2: #4db3a3;
       --teal-dim: rgba(63, 159, 144, 0.12);
+
       --danger: #d17a74;
       --ok: #5aa882;
       --font: "Schibsted Grotesk", "Avenir Next", sans-serif;
       --mono: "IBM Plex Mono", ui-monospace, monospace;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    html, body { height: 100%; }
+    html,
+    body {
+      height: 100%;
+    }
 
     body {
       font-family: var(--font);
@@ -71,8 +82,13 @@
     }
 
     @keyframes progressSlide {
-      0% { transform: translateX(-120%); }
-      100% { transform: translateX(380%); }
+      0% {
+        transform: translateX(-120%);
+      }
+
+      100% {
+        transform: translateX(380%);
+      }
     }
 
     .topbar {
@@ -159,8 +175,15 @@
     }
 
     @keyframes livePulse {
-      0% { opacity: 0.55; transform: scale(0.7); }
-      100% { opacity: 0; transform: scale(1.8); }
+      0% {
+        opacity: 0.55;
+        transform: scale(0.7);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(1.8);
+      }
     }
 
     .live-toggle {
@@ -206,8 +229,13 @@
     }
 
     @keyframes countBump {
-      0% { color: var(--teal-2); }
-      100% { color: var(--text); }
+      0% {
+        color: var(--teal-2);
+      }
+
+      100% {
+        color: var(--text);
+      }
     }
 
     .updated-flash {
@@ -262,8 +290,13 @@
       transition: border-color 0.12s ease, background 0.12s ease;
     }
 
-    input[type="search"] { padding-left: 34px; }
-    input[type="search"]::placeholder { color: var(--text-3); }
+    input[type="search"] {
+      padding-left: 34px;
+    }
+
+    input[type="search"]::placeholder {
+      color: var(--text-3);
+    }
 
     input[type="search"]:focus,
     select:focus {
@@ -282,7 +315,9 @@
       background-position: right 10px center;
     }
 
-    .spacer { flex: 0 0 4px; }
+    .spacer {
+      flex: 0 0 4px;
+    }
 
     button {
       height: 36px;
@@ -308,7 +343,9 @@
       color: #0a1412;
     }
 
-    .btn-solid:hover:not(:disabled) { background: var(--teal-2); }
+    .btn-solid:hover:not(:disabled) {
+      background: var(--teal-2);
+    }
 
     .btn-line {
       background: transparent;
@@ -332,7 +369,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     .stage {
@@ -358,8 +397,13 @@
       table-layout: fixed;
     }
 
-    col.name { width: 42%; }
-    col.email { width: 58%; }
+    col.name {
+      width: 42%;
+    }
+
+    col.email {
+      width: 58%;
+    }
 
     thead th {
       position: sticky;
@@ -389,23 +433,61 @@
       animation: rowFade 0.28s ease both;
     }
 
-    tbody tr.data-row:nth-child(1) { animation-delay: 0.01s; }
-    tbody tr.data-row:nth-child(2) { animation-delay: 0.03s; }
-    tbody tr.data-row:nth-child(3) { animation-delay: 0.05s; }
-    tbody tr.data-row:nth-child(4) { animation-delay: 0.07s; }
-    tbody tr.data-row:nth-child(5) { animation-delay: 0.09s; }
-    tbody tr.data-row:nth-child(6) { animation-delay: 0.11s; }
-    tbody tr.data-row:nth-child(7) { animation-delay: 0.13s; }
-    tbody tr.data-row:nth-child(8) { animation-delay: 0.15s; }
-
-    @keyframes rowFade {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
+    tbody tr.data-row:nth-child(1) {
+      animation-delay: 0.01s;
     }
 
-    tbody tr:hover td { background: var(--teal-dim); }
-    tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.012); }
-    tbody tr:nth-child(even):hover td { background: var(--teal-dim); }
+    tbody tr.data-row:nth-child(2) {
+      animation-delay: 0.03s;
+    }
+
+    tbody tr.data-row:nth-child(3) {
+      animation-delay: 0.05s;
+    }
+
+    tbody tr.data-row:nth-child(4) {
+      animation-delay: 0.07s;
+    }
+
+    tbody tr.data-row:nth-child(5) {
+      animation-delay: 0.09s;
+    }
+
+    tbody tr.data-row:nth-child(6) {
+      animation-delay: 0.11s;
+    }
+
+    tbody tr.data-row:nth-child(7) {
+      animation-delay: 0.13s;
+    }
+
+    tbody tr.data-row:nth-child(8) {
+      animation-delay: 0.15s;
+    }
+
+    @keyframes rowFade {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    tbody tr:hover td {
+      background: var(--teal-dim);
+    }
+
+    tbody tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.012);
+    }
+
+    tbody tr:nth-child(even):hover td {
+      background: var(--teal-dim);
+    }
 
     .name {
       font-size: 14px;
@@ -424,25 +506,40 @@
       display: block;
       height: 12px;
       border-radius: 2px;
-      background: linear-gradient(
-        90deg,
-        #1c242c 0%,
-        #273039 45%,
-        #1c242c 90%
-      );
+      background: linear-gradient(90deg,
+          #1c242c 0%,
+          #273039 45%,
+          #1c242c 90%);
       background-size: 220% 100%;
       animation: shimmer 1.25s ease-in-out infinite;
     }
 
-    .skel.name-skel { width: 58%; height: 13px; }
-    .skel.email-skel { width: 72%; height: 11px; }
+    .skel.name-skel {
+      width: 58%;
+      height: 13px;
+    }
 
-    tr.skel-row td { pointer-events: none; }
-    tr.skel-row:hover td { background: transparent !important; }
+    .skel.email-skel {
+      width: 72%;
+      height: 11px;
+    }
+
+    tr.skel-row td {
+      pointer-events: none;
+    }
+
+    tr.skel-row:hover td {
+      background: transparent !important;
+    }
 
     @keyframes shimmer {
-      0% { background-position: 100% 0; }
-      100% { background-position: -100% 0; }
+      0% {
+        background-position: 100% 0;
+      }
+
+      100% {
+        background-position: -100% 0;
+      }
     }
 
     .empty-state {
@@ -468,7 +565,9 @@
       animation: spin 0.8s linear infinite;
     }
 
-    .empty-state.error { color: var(--danger); }
+    .empty-state.error {
+      color: var(--danger);
+    }
 
     .footer {
       display: flex;
@@ -501,8 +600,14 @@
       animation: spin 0.7s linear infinite;
     }
 
-    .pager { display: flex; gap: 6px; }
-    .pager button { min-width: 88px; }
+    .pager {
+      display: flex;
+      gap: 6px;
+    }
+
+    .pager button {
+      min-width: 88px;
+    }
 
     /* Modal */
     .modal-root {
@@ -523,7 +628,9 @@
     }
 
     @keyframes fadeOverlay {
-      to { opacity: 1; }
+      to {
+        opacity: 1;
+      }
     }
 
     .modal {
@@ -536,7 +643,9 @@
     }
 
     @keyframes modalIn {
-      to { transform: translateY(0) scale(1); }
+      to {
+        transform: translateY(0) scale(1);
+      }
     }
 
     .modal h2 {
@@ -591,7 +700,7 @@
       background: var(--panel-2);
       color: var(--teal-2);
       border-color: rgba(63, 159, 144, 0.4);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 
     .export-section {
@@ -779,6 +888,94 @@
       display: flex;
       justify-content: flex-end;
       gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Slider progress loader for large Copy / Copy All */
+    .copy-progress {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      background: var(--bg);
+      border: 1px solid rgba(45, 212, 191, 0.35);
+      border-radius: 4px;
+    }
+
+    .copy-progress.active {
+      display: flex;
+    }
+
+    .copy-progress-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .copy-progress-eta {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--teal-2);
+      white-space: nowrap;
+    }
+
+    .copy-slider-track {
+      position: relative;
+      width: 100%;
+      height: 8px;
+      background: var(--panel-2);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .copy-slider-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0d9488, #2dd4bf, #5eead4);
+      border-radius: 999px;
+      transition: width 0.14s ease-out;
+    }
+
+    .copy-slider-fill.indeterminate {
+      width: 35%;
+      animation: sliderIndeterminate 1.2s ease-in-out infinite;
+    }
+
+    @keyframes sliderIndeterminate {
+      0% {
+        transform: translateX(-100%);
+      }
+
+      100% {
+        transform: translateX(300%);
+      }
+    }
+
+    .copy-progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-2);
+    }
+
+    .copy-ready-btn {
+      display: none;
+      margin-top: 4px;
+      width: 100%;
+    }
+
+    .copy-ready-btn.visible {
+      display: inline-flex;
+      justify-content: center;
     }
 
     /* Export preparing toast */
@@ -805,21 +1002,51 @@
     }
 
     @keyframes toastIn {
-      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
     }
 
     @media (max-width: 720px) {
-      .brand-sub { display: none; }
-      .top-meta { gap: 12px; }
-      .controls { padding: 10px 14px; }
-      thead th, tbody td { padding-left: 14px; padding-right: 14px; }
-      .footer { padding: 10px 14px; }
-      select { flex: 1 1 calc(50% - 4px); min-width: 0; }
-      .btn-line, .btn-solid { flex: 1; }
+      .brand-sub {
+        display: none;
+      }
+
+      .top-meta {
+        gap: 12px;
+      }
+
+      .controls {
+        padding: 10px 14px;
+      }
+
+      thead th,
+      tbody td {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .footer {
+        padding: 10px 14px;
+      }
+
+      select {
+        flex: 1 1 calc(50% - 4px);
+        min-width: 0;
+      }
+
+      .btn-line,
+      .btn-solid {
+        flex: 1;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
+
+      *,
+      *::before,
+      *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
@@ -827,6 +1054,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="app">
     <div class="progress" id="progress" aria-hidden="true">
@@ -840,7 +1068,8 @@
         <span class="brand-sub">Live contact archive</span>
       </div>
       <div class="top-meta">
-        <button type="button" class="live-toggle on" id="liveToggle" title="Auto-refresh while scraping" aria-pressed="true">
+        <button type="button" class="live-toggle on" id="liveToggle" title="Auto-refresh while scraping"
+          aria-pressed="true">
           <span class="dot" aria-hidden="true"></span>
           Live
         </button>
@@ -853,8 +1082,8 @@
     <div class="controls">
       <div class="search-wrap">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="11" cy="11" r="6.25" stroke="currentColor" stroke-width="1.6"/>
-          <path d="M16 16.5 20 20.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/>
+          <circle cx="11" cy="11" r="6.25" stroke="currentColor" stroke-width="1.6" />
+          <path d="M16 16.5 20 20.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" />
         </svg>
         <input type="search" id="search" placeholder="Filter by name or email" autocomplete="off" />
       </div>
@@ -972,10 +1201,30 @@
 
       <div class="modal-hint" id="exportHint"></div>
 
+      <div class="copy-progress" id="copyProgress" aria-live="polite">
+        <div class="copy-progress-head">
+          <span id="copyProgressTitle">Preparing data…</span>
+          <span class="copy-progress-eta" id="copyProgressEta">0%</span>
+        </div>
+        <div class="copy-slider-track">
+          <div class="copy-slider-fill" id="copySliderFill"></div>
+        </div>
+        <div class="copy-progress-meta">
+          <span id="copyProgressCount">0 contacts</span>
+          <span id="copyProgressSpeed">Starting…</span>
+        </div>
+        <button type="button" class="btn-solid copy-ready-btn" id="copyReadyBtn">
+          Click to Copy Ready Data
+        </button>
+      </div>
+
       <div class="modal-actions">
         <button type="button" class="btn-line" id="exportCancel">Cancel</button>
         <button type="button" class="btn-line" id="exportCopy">
           <span class="btn-label">Copy</span>
+        </button>
+        <button type="button" class="btn-line" id="exportCopyAll">
+          <span class="btn-label">Copy All</span>
         </button>
         <button type="button" class="btn-solid" id="exportConfirm">
           <span class="btn-label">Download CSV</span>
@@ -1042,6 +1291,14 @@
       exportCancel: document.getElementById("exportCancel"),
       exportConfirm: document.getElementById("exportConfirm"),
       exportCopy: document.getElementById("exportCopy"),
+      exportCopyAll: document.getElementById("exportCopyAll"),
+      copyProgress: document.getElementById("copyProgress"),
+      copyProgressTitle: document.getElementById("copyProgressTitle"),
+      copyProgressEta: document.getElementById("copyProgressEta"),
+      copySliderFill: document.getElementById("copySliderFill"),
+      copyProgressCount: document.getElementById("copyProgressCount"),
+      copyProgressSpeed: document.getElementById("copyProgressSpeed"),
+      copyReadyBtn: document.getElementById("copyReadyBtn"),
       presetAll: document.getElementById("presetAll"),
       progress: document.getElementById("progress"),
       stage: document.getElementById("stage"),
@@ -1092,10 +1349,12 @@
       el.pagerInfo.innerHTML = `<span class="mini-spin" aria-hidden="true"></span> Loading`;
     }
 
-    const COPY_LIMIT = 10000;
     let dateStatsTimer = null;
     let dateAbortCtrl = null;
     let dateExactCount = 0;
+    let copyAbortCtrl = null;
+    let pendingClipboardText = null;
+    let pendingClipboardRows = 0;
 
     function formatDateInputValue(d) {
       const y = d.getFullYear();
@@ -1139,6 +1398,12 @@
       }
     }
 
+    function setExportActionsDisabled(disabled) {
+      el.exportConfirm.disabled = disabled;
+      el.exportCopy.disabled = disabled;
+      el.exportCopyAll.disabled = disabled;
+    }
+
     function updateExportHint() {
       if (state.exportMode === "date") {
         fetchDateStats();
@@ -1151,25 +1416,18 @@
       if (!Number.isFinite(from) || !Number.isFinite(to) || from < 1 || to < from) {
         el.exportHint.className = "modal-hint error";
         el.exportHint.textContent = "Enter a valid range (From ≤ To).";
-        el.exportConfirm.disabled = true;
-        el.exportCopy.disabled = true;
+        setExportActionsDisabled(true);
         return false;
       }
       const rawCount = to - from + 1;
-      const exportTo = rawCount > COPY_LIMIT ? from + COPY_LIMIT - 1 : to;
-      const cappedNote =
-        rawCount > COPY_LIMIT
-          ? ` (will copy ${from.toLocaleString()}–${exportTo.toLocaleString()}, max ${COPY_LIMIT.toLocaleString()} rows)`
-          : "";
-      const capped = total > 0 ? Math.min(exportTo, total) : exportTo;
-      const actual = total > 0 ? Math.max(0, capped - from + 1) : exportTo - from + 1;
+      const capped = total > 0 ? Math.min(to, total) : to;
+      const actual = total > 0 ? Math.max(0, capped - from + 1) : rawCount;
       el.exportHint.className = "modal-hint";
       el.exportHint.textContent =
         total > 0
-          ? `Will export ${actual.toLocaleString()} of ${total.toLocaleString()} records${cappedNote}`
-          : `Will export rows ${from.toLocaleString()}–${exportTo.toLocaleString()}${cappedNote}`;
-      el.exportConfirm.disabled = false;
-      el.exportCopy.disabled = false;
+          ? `Will export ${actual.toLocaleString()} of ${total.toLocaleString()} records`
+          : `Will export rows ${from.toLocaleString()}–${to.toLocaleString()}`;
+      setExportActionsDisabled(false);
       return true;
     }
 
@@ -1184,28 +1442,25 @@
         if (!startVal || !endVal) {
           el.exportHint.className = "modal-hint error";
           el.exportHint.textContent = "Select both From and To dates.";
-          el.exportConfirm.disabled = true;
-          el.exportCopy.disabled = true;
+          setExportActionsDisabled(true);
           return;
         }
 
         if (startVal > endVal) {
           el.exportHint.className = "modal-hint error";
           el.exportHint.textContent = "From Date must be earlier than or equal to To Date.";
-          el.exportConfirm.disabled = true;
-          el.exportCopy.disabled = true;
+          setExportActionsDisabled(true);
           return;
         }
 
         if (dateAbortCtrl) {
-          try { dateAbortCtrl.abort(); } catch {}
+          try { dateAbortCtrl.abort(); } catch { }
         }
         dateAbortCtrl = new AbortController();
 
         el.exportHint.className = "modal-hint";
         el.exportHint.innerHTML = '<span class="hint-spin" aria-hidden="true"></span> Calculating exact leads in database…';
-        el.exportConfirm.disabled = true;
-        el.exportCopy.disabled = true;
+        setExportActionsDisabled(true);
 
         try {
           const startLocal = new Date(`${startVal}T00:00:00`);
@@ -1230,20 +1485,17 @@
           if (dateExactCount === 0) {
             el.exportHint.className = "modal-hint";
             el.exportHint.textContent = `No leads found scraped between ${startVal} and ${endVal}.`;
-            el.exportConfirm.disabled = true;
-            el.exportCopy.disabled = true;
+            setExportActionsDisabled(true);
           } else {
             el.exportHint.className = "modal-hint success";
             el.exportHint.innerHTML = `Found exact <b>${dateExactCount.toLocaleString()}</b> leads scraped between ${startVal} and ${endVal}`;
-            el.exportConfirm.disabled = false;
-            el.exportCopy.disabled = false;
+            setExportActionsDisabled(false);
           }
         } catch (err) {
           if (err.name === "AbortError") return;
           el.exportHint.className = "modal-hint error";
           el.exportHint.textContent = err.message || "Failed to count leads";
-          el.exportConfirm.disabled = true;
-          el.exportCopy.disabled = true;
+          setExportActionsDisabled(true);
         }
       }, 160);
     }
@@ -1308,13 +1560,35 @@
       }
     }
 
+    function resetCopyProgress() {
+      if (copyAbortCtrl) {
+        try { copyAbortCtrl.abort(); } catch { }
+        copyAbortCtrl = null;
+      }
+      pendingClipboardText = null;
+      pendingClipboardRows = 0;
+      el.copyProgress.classList.remove("active");
+      el.copySliderFill.classList.remove("indeterminate");
+      el.copySliderFill.style.width = "0%";
+      el.copyProgressTitle.textContent = "Preparing data…";
+      el.copyProgressEta.textContent = "0%";
+      el.copyProgressCount.textContent = "0 contacts";
+      el.copyProgressSpeed.textContent = "Starting…";
+      el.copyReadyBtn.classList.remove("visible");
+      setButtonLoading(el.exportCopy, false);
+      setButtonLoading(el.exportCopyAll, false);
+      el.exportCopy.disabled = false;
+      el.exportCopyAll.disabled = false;
+      el.exportConfirm.disabled = false;
+    }
+
     function closeExportModal() {
       if (dateAbortCtrl) {
-        try { dateAbortCtrl.abort(); } catch {}
+        try { dateAbortCtrl.abort(); } catch { }
       }
+      resetCopyProgress();
       el.exportModal.classList.remove("open");
       setButtonLoading(el.exportConfirm, false);
-      setButtonLoading(el.exportCopy, false);
     }
 
     function showToast(message, { spinning = true } = {}) {
@@ -1333,26 +1607,197 @@
     function getExportRange() {
       if (!updateExportHint()) return null;
       const from = Math.max(1, Math.floor(Number(el.exportFrom.value)));
-      let to = Math.max(from, Math.floor(Number(el.exportTo.value)));
-      to = Math.min(to, from + COPY_LIMIT - 1);
+      const to = Math.max(from, Math.floor(Number(el.exportTo.value)));
       el.exportTo.value = String(to);
       return { from, to };
     }
 
-    function csvToCopyText(csv) {
-      return csv
-        .replace(/^\uFEFF/, "")
-        .trim()
-        .split(/\r?\n/)
-        .filter(Boolean)
-        .map((line) => {
-          const match = line.match(/^"(.*)"\s*,\s*"(.*)"$/);
-          if (match) {
-            return `${match[1].replace(/""/g, '"')}\t${match[2].replace(/""/g, '"')}`;
+    function fallbackExecCommandCopy(text) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "-9999px";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        ok = false;
+      }
+      document.body.removeChild(ta);
+      return ok;
+    }
+
+    async function writeClipboardWithFallback(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch {
+          // User activation may have expired during a long stream; try fallback
+        }
+      }
+      return fallbackExecCommandCopy(text);
+    }
+
+    function countNewlines(str) {
+      let count = 0;
+      let idx = -1;
+      while ((idx = str.indexOf("\n", idx + 1)) !== -1) {
+        count += 1;
+      }
+      return count;
+    }
+
+    function formatEta(seconds) {
+      if (!Number.isFinite(seconds) || seconds <= 0) return "almost done";
+      if (seconds < 1) return "< 1s left";
+      if (seconds < 60) return `~${Math.ceil(seconds)}s left`;
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.ceil(seconds % 60);
+      return `~${mins}m ${secs}s left`;
+    }
+
+    async function streamCopyToClipboard({ url, expectedTotal, title, triggerBtn }) {
+      if (copyAbortCtrl) {
+        try { copyAbortCtrl.abort(); } catch { }
+      }
+      copyAbortCtrl = new AbortController();
+      pendingClipboardText = null;
+      pendingClipboardRows = 0;
+
+      el.copyReadyBtn.classList.remove("visible");
+      el.copyProgress.classList.add("active");
+      el.copyProgressTitle.textContent = title;
+      el.copyProgressEta.textContent = expectedTotal > 0 ? "0%" : "Loading…";
+      el.copyProgressCount.textContent =
+        expectedTotal > 0
+          ? `0 / ${expectedTotal.toLocaleString()} contacts`
+          : "0 contacts";
+      el.copyProgressSpeed.textContent = "Connecting…";
+
+      if (expectedTotal > 0) {
+        el.copySliderFill.classList.remove("indeterminate");
+        el.copySliderFill.style.width = "2%";
+      } else {
+        el.copySliderFill.classList.add("indeterminate");
+      }
+
+      setButtonLoading(triggerBtn, true);
+      el.exportCopy.disabled = true;
+      el.exportCopyAll.disabled = true;
+      el.exportConfirm.disabled = true;
+      setProgress(true);
+
+      const startedAt = performance.now();
+      let lastUiUpdate = 0;
+
+      try {
+        const res = await fetch(url, { signal: copyAbortCtrl.signal });
+        if (!res.ok) {
+          let detail = "";
+          try {
+            const payload = await res.json();
+            detail = payload?.error ? `: ${payload.error}` : "";
+          } catch { }
+          throw new Error(`Failed to load contacts for copy${detail}`);
+        }
+
+        const chunks = [];
+        let newlineCount = 0;
+
+        if (res.body && res.body.getReader) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder("utf-8");
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const piece = decoder.decode(value, { stream: true });
+            if (piece) {
+              chunks.push(piece);
+              newlineCount += countNewlines(piece);
+            }
+
+            const now = performance.now();
+            if (now - lastUiUpdate >= 80) {
+              lastUiUpdate = now;
+              const rowsLoaded = Math.max(0, newlineCount - 1);
+              const elapsedSec = Math.max(0.05, (now - startedAt) / 1000);
+              const rate = rowsLoaded / elapsedSec;
+
+              if (expectedTotal > 0) {
+                const pct = Math.min(99, Math.round((rowsLoaded / expectedTotal) * 100));
+                const remainingRows = Math.max(0, expectedTotal - rowsLoaded);
+                const etaSec = rate > 50 ? remainingRows / rate : 0;
+                el.copySliderFill.classList.remove("indeterminate");
+                el.copySliderFill.style.width = `${Math.max(2, pct)}%`;
+                el.copyProgressEta.textContent =
+                  etaSec > 0 ? `${pct}% · ${formatEta(etaSec)}` : `${pct}%`;
+                el.copyProgressCount.textContent = `${rowsLoaded.toLocaleString()} / ${expectedTotal.toLocaleString()} contacts`;
+              } else {
+                el.copyProgressCount.textContent = `${rowsLoaded.toLocaleString()} contacts`;
+              }
+              el.copyProgressSpeed.textContent = `${Math.round(rate).toLocaleString()} rows/s`;
+            }
           }
-          return line;
-        })
-        .join("\n");
+
+          const tail = decoder.decode();
+          if (tail) {
+            chunks.push(tail);
+            newlineCount += countNewlines(tail);
+          }
+        } else {
+          const textFallback = await res.text();
+          chunks.push(textFallback);
+          newlineCount = countNewlines(textFallback);
+        }
+
+        const text = chunks.join("");
+        const rows = Math.max(0, newlineCount - 1);
+
+        el.copySliderFill.classList.remove("indeterminate");
+        el.copySliderFill.style.width = "100%";
+        el.copyProgressEta.textContent = "100%";
+        el.copyProgressCount.textContent = `${rows.toLocaleString()} contacts ready`;
+        el.copyProgressSpeed.textContent = "Writing to clipboard…";
+
+        const copied = await writeClipboardWithFallback(text);
+        if (copied) {
+          closeExportModal();
+          showToast(`Copied ${rows.toLocaleString()} contacts (Name + Email)`, {
+            spinning: false,
+          });
+          hideToast(2600);
+        } else {
+          // Browser blocked clipboard after async delay; offer instant 1-click copy
+          pendingClipboardText = text;
+          pendingClipboardRows = rows;
+          el.copyProgressTitle.textContent = "Data ready! Click below to copy:";
+          el.copyProgressSpeed.textContent = "1-click clipboard";
+          el.copyReadyBtn.textContent = `Click to Copy ${rows.toLocaleString()} Contacts`;
+          el.copyReadyBtn.classList.add("visible");
+          setButtonLoading(triggerBtn, false);
+          el.exportCopy.disabled = false;
+          el.exportCopyAll.disabled = false;
+          el.exportConfirm.disabled = false;
+        }
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          showToast("Copy cancelled", { spinning: false });
+          hideToast(1600);
+          return;
+        }
+        resetCopyProgress();
+        showToast(error.message || "Copy failed", { spinning: false });
+        hideToast(2400);
+      } finally {
+        copyAbortCtrl = null;
+        setProgress(false);
+      }
     }
 
     function startCsvDownload() {
@@ -1406,7 +1851,7 @@
       }, 280);
     }
 
-    async function copyExportRange() {
+    async function copyExportRange(forceAll = false) {
       if (state.exportMode === "date") {
         const dates = getExportDates();
         if (!dates) {
@@ -1420,92 +1865,56 @@
           return;
         }
 
-        setButtonLoading(el.exportCopy, true);
-        showToast(`Copying ${dateExactCount.toLocaleString()} leads (${dates.startVal} to ${dates.endVal})…`);
-        setProgress(true);
+        const url = `/records/export.tsv${queryString({
+          mode: "date",
+          startDate: dates.startIso,
+          endDate: dates.endIso,
+          dateLabel: dates.label,
+        })}`;
 
-        try {
-          const res = await fetch(`/records/export.csv${queryString({
-            mode: "date",
-            startDate: dates.startIso,
-            endDate: dates.endIso,
-            dateLabel: dates.label,
-          })}`);
-          if (!res.ok) {
-            let detail = "";
-            try {
-              const payload = await res.json();
-              detail = payload?.error ? `: ${payload.error}` : "";
-            } catch {}
-            throw new Error(`Failed to load contacts for copy${detail}`);
-          }
-          const csv = await res.text();
-          const text = csvToCopyText(csv);
-          const rows = Math.max(0, text.split("\n").length - 1);
-
-          if (!navigator.clipboard || !navigator.clipboard.writeText) {
-            throw new Error("Clipboard not available in this browser");
-          }
-          await navigator.clipboard.writeText(text);
-
-          closeExportModal();
-          showToast(`Copied ${rows.toLocaleString()} contacts (Name + Email)`, {
-            spinning: false,
-          });
-          hideToast(2400);
-        } catch (error) {
-          showToast(error.message || "Copy failed", { spinning: false });
-          hideToast(2400);
-          setButtonLoading(el.exportCopy, false);
-        } finally {
-          setProgress(false);
-        }
+        await streamCopyToClipboard({
+          url,
+          expectedTotal: dateExactCount,
+          title: `Copying ${dateExactCount.toLocaleString()} contacts (${dates.startVal} to ${dates.endVal})…`,
+          triggerBtn: forceAll ? el.exportCopyAll : el.exportCopy,
+        });
         return;
       }
 
       // Count mode
+      if (forceAll) {
+        const total = state.total || 0;
+        const url = `/records/export.tsv${queryString({ limit: "all" })}`;
+        await streamCopyToClipboard({
+          url,
+          expectedTotal: total,
+          title:
+            total > 0
+              ? `Copying all ${total.toLocaleString()} contacts…`
+              : "Copying all contacts…",
+          triggerBtn: el.exportCopyAll,
+        });
+        return;
+      }
+
       const range = getExportRange();
       if (!range) return;
 
-      setButtonLoading(el.exportCopy, true);
-      showToast(`Copying · ${range.from.toLocaleString()}–${range.to.toLocaleString()}`);
-      setProgress(true);
+      const total = state.total || 0;
+      const cappedTo = total > 0 ? Math.min(range.to, total) : range.to;
+      const expectedTotal = Math.max(0, cappedTo - range.from + 1);
+      const url = `/records/export.tsv${queryString({
+        mode: "count",
+        from: range.from,
+        to: range.to,
+      })}`;
 
-      try {
-        const res = await fetch(`/records/export.csv${queryString({
-          mode: "count",
-          from: range.from,
-          to: range.to,
-        })}`);
-        if (!res.ok) {
-          let detail = "";
-          try {
-            const payload = await res.json();
-            detail = payload?.error ? `: ${payload.error}` : "";
-          } catch {}
-          throw new Error(`Failed to load contacts for copy${detail}`);
-        }
-        const csv = await res.text();
-        const text = csvToCopyText(csv);
-        const rows = Math.max(0, text.split("\n").length - 1);
-
-        if (!navigator.clipboard || !navigator.clipboard.writeText) {
-          throw new Error("Clipboard not available in this browser");
-        }
-        await navigator.clipboard.writeText(text);
-
-        closeExportModal();
-        showToast(`Copied ${rows.toLocaleString()} contacts (Name + Email)`, {
-          spinning: false,
-        });
-        hideToast(2200);
-      } catch (error) {
-        showToast(error.message || "Copy failed", { spinning: false });
-        hideToast(2400);
-        setButtonLoading(el.exportCopy, false);
-      } finally {
-        setProgress(false);
-      }
+      await streamCopyToClipboard({
+        url,
+        expectedTotal,
+        title: `Copying ${range.from.toLocaleString()}–${range.to.toLocaleString()}…`,
+        triggerBtn: el.exportCopy,
+      });
     }
 
     function escapeHtml(value) {
@@ -1736,11 +2145,35 @@
     el.exportCancel.addEventListener("click", closeExportModal);
     el.exportConfirm.addEventListener("click", startCsvDownload);
     el.exportCopy.addEventListener("click", () => {
-      copyExportRange().catch((err) => {
+      copyExportRange(false).catch((err) => {
         showToast(err.message || "Copy failed", { spinning: false });
         hideToast(2400);
-        setButtonLoading(el.exportCopy, false);
+        resetCopyProgress();
       });
+    });
+
+    el.exportCopyAll.addEventListener("click", () => {
+      copyExportRange(true).catch((err) => {
+        showToast(err.message || "Copy failed", { spinning: false });
+        hideToast(2400);
+        resetCopyProgress();
+      });
+    });
+
+    el.copyReadyBtn.addEventListener("click", async () => {
+      if (!pendingClipboardText) return;
+      const rows = pendingClipboardRows;
+      const ok = await writeClipboardWithFallback(pendingClipboardText);
+      if (ok) {
+        closeExportModal();
+        showToast(`Copied ${rows.toLocaleString()} contacts (Name + Email)`, {
+          spinning: false,
+        });
+        hideToast(2600);
+      } else {
+        showToast("Clipboard permission denied by browser", { spinning: false });
+        hideToast(2400);
+      }
     });
 
     el.modeCountBtn.addEventListener("click", () => setExportMode("count"));
@@ -1809,7 +2242,7 @@
       e.stopPropagation();
       if (state.exportMode !== "count") setExportMode("count");
       el.exportFrom.value = "1";
-      el.exportTo.value = String(Math.max(1, Math.min(COPY_LIMIT, state.total || 1)));
+      el.exportTo.value = String(Math.max(1, state.total || 1));
       updateExportHint();
     });
 
@@ -1851,4 +2284,5 @@
       .catch(showError);
   </script>
 </body>
+
 </html>

@@ -10,6 +10,7 @@
     { "source": "/health", "destination": "/api/health" },
     { "source": "/jobs", "destination": "/api/jobs" },
     { "source": "/records/export.csv", "destination": "/api/export" },
+    { "source": "/records/export.tsv", "destination": "/api/export?format=tsv" },
     { "source": "/records/stats", "destination": "/api/stats" },
     { "source": "/records", "destination": "/api/records" }
   ],

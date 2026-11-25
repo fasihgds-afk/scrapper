@@ -1,9 +1,5 @@
-const { connectMongo, Record, buildRecordFilter, sendText, sendJson } = require("../lib/db");
-
-/** Max contacts per Copy / CSV request for row-range mode. */
-const MAX_EXPORT_ROWS = 10000;
-/** Max contacts for date-based export so users can export full date collections (e.g. 1,000–10,000 leads). */
-const MAX_DATE_EXPORT_ROWS = 50000;
+const { once } = require("node:events");
+const { connectMongo, Record, buildRecordFilter, sendJson } = require("../lib/db");
 
 function csvCell(value) {
   return `"${String(value).replace(/"/g, '""')}"`;
@@ -14,37 +10,7 @@ function cleanName(value) {
 }
 
 function cleanEmail(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function compareRows(a, b) {
-  const byName = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-  if (byName !== 0) return byName;
-  return a.email.localeCompare(b.email);
-}
-
-/**
- * Build unique A–Z list for the filter, then slice [skip, skip+maxRows).
- * Optimized batch cursor to avoid memory bloat.
- */
-async function collectUniqueRows(filter, { skip = 0, maxRows = MAX_EXPORT_ROWS }) {
-  const seen = new Map();
-  const cursor = Record.find(filter)
-    .select({ name: 1, email: 1, _id: 0 })
-    .maxTimeMS(55_000)
-    .lean()
-    .cursor({ batchSize: 2000 });
-
-  for await (const doc of cursor) {
-    const name = cleanName(doc.name);
-    const email = cleanEmail(doc.email);
-    if (!name && !email) continue;
-    const key = email || `name:${name.toLowerCase()}`;
-    if (!seen.has(key)) seen.set(key, { name, email });
-  }
-
-  const unique = [...seen.values()].sort(compareRows);
-  return unique.slice(skip, skip + maxRows);
+  return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
 }
 
 module.exports = async function handler(req, res) {
@@ -61,6 +27,10 @@ module.exports = async function handler(req, res) {
     const q = url.searchParams.get("q") || undefined;
     const university = url.searchParams.get("university") || undefined;
 
+    const formatParam = (url.searchParams.get("format") || "").toLowerCase();
+    const isTsv = formatParam === "tsv" || url.pathname.endsWith(".tsv");
+    const ext = isTsv ? "tsv" : "csv";
+
     const mode = (url.searchParams.get("mode") || "").toLowerCase();
     const startDate =
       url.searchParams.get("startDate") ||
@@ -74,51 +44,123 @@ module.exports = async function handler(req, res) {
       undefined;
     const dateLabel = url.searchParams.get("dateLabel") || undefined;
 
-    // Mutually exclusive: if mode is 'date' or startDate/endDate is given, export strictly by date
     const isDateMode = mode === "date" || Boolean(startDate || endDate);
 
     let filter;
     let skip = 0;
-    let maxRows = MAX_EXPORT_ROWS;
+    let maxRows = Number.POSITIVE_INFINITY;
     let filename = "";
     const stamp = new Date().toISOString().slice(0, 10);
 
     if (isDateMode) {
       filter = buildRecordFilter({ jobId, q, university, startDate, endDate });
       skip = 0;
-      maxRows = MAX_DATE_EXPORT_ROWS;
+      maxRows = Number.POSITIVE_INFINITY;
       const cleanLabel = (dateLabel || `${startDate || "start"}_${endDate || "end"}`)
         .replace(/[^a-zA-Z0-9_-]/g, "_")
         .slice(0, 60);
-      filename = `contacts_date_${cleanLabel}.csv`;
+      filename = `contacts_date_${cleanLabel}.${ext}`;
     } else {
       filter = buildRecordFilter({ jobId, q, university });
-      const fromRaw = Math.floor(Number(url.searchParams.get("from") ?? 1));
-      const toRaw = Math.floor(Number(url.searchParams.get("to") ?? fromRaw));
-      const from = Math.max(1, Number.isFinite(fromRaw) ? fromRaw : 1);
-      let to = Math.max(from, Number.isFinite(toRaw) ? toRaw : from);
-      // Auto-cap any window to 10k rows (e.g. 10000–20000 → 10000–19999)
-      to = Math.min(to, from + MAX_EXPORT_ROWS - 1);
-      skip = from - 1;
-      maxRows = to - from + 1;
-      filename = `contacts_${stamp}_${from}-${to}.csv`;
+      const rawLimit = (url.searchParams.get("limit") || "").trim().toLowerCase();
+      const hasRange = url.searchParams.has("from") || url.searchParams.has("to");
+
+      if (!hasRange && rawLimit === "all") {
+        skip = 0;
+        maxRows = Number.POSITIVE_INFINITY;
+        filename = `contacts_${stamp}.${ext}`;
+      } else if (hasRange) {
+        const fromRaw = Math.floor(Number(url.searchParams.get("from") ?? 1));
+        const toRaw = Math.floor(Number(url.searchParams.get("to") ?? fromRaw));
+        const from = Math.max(1, Number.isFinite(fromRaw) ? fromRaw : 1);
+        const to = Math.max(from, Number.isFinite(toRaw) ? toRaw : from);
+        skip = from - 1;
+        maxRows = to - from + 1;
+        filename = `contacts_${stamp}_${from}-${to}.${ext}`;
+      } else {
+        maxRows = Number.POSITIVE_INFINITY;
+        filename = `contacts_${stamp}.${ext}`;
+      }
     }
 
-    const rows = await collectUniqueRows(filter, { skip, maxRows });
-    const lines = [
-      `${csvCell("Name")},${csvCell("Email")}`,
-      ...rows.map((row) => `${csvCell(row.name)},${csvCell(row.email)}`),
-    ];
+    let clientClosed = false;
+    req.on("close", () => {
+      if (!req.complete) clientClosed = true;
+    });
 
-    const body = `\uFEFF${lines.join("\r\n")}\r\n`;
-    sendText(res, 200, body, {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+    res.writeHead(200, {
+      "Content-Type": isTsv
+        ? "text/tab-separated-values; charset=utf-8"
+        : "text/csv; charset=utf-8",
+      "Content-Disposition": isTsv
+        ? `inline; filename="${filename}"`
+        : `attachment; filename="${filename}"`,
       "Cache-Control": "no-store",
     });
+
+    const buffer = [];
+    if (isTsv) {
+      buffer.push("Name\tEmail\n");
+    } else {
+      buffer.push(`\uFEFF${csvCell("Name")},${csvCell("Email")}\r\n`);
+    }
+
+    const FLUSH_ROWS = 1000;
+    const seen = new Set();
+    let index = 0;
+    let written = 0;
+
+    async function flushBuffer() {
+      if (buffer.length === 0 || res.destroyed || clientClosed) return;
+      const payload = buffer.join("");
+      buffer.length = 0;
+      if (!res.write(payload)) {
+        await once(res, "drain");
+      }
+    }
+
+    const cursor = Record.find(filter)
+      .select({ name: 1, email: 1, _id: 0 })
+      .sort({ _id: -1 })
+      .maxTimeMS(55_000)
+      .lean()
+      .cursor({ batchSize: 5000 });
+
+    for await (const doc of cursor) {
+      if (clientClosed || res.destroyed || written >= maxRows) break;
+
+      const name = cleanName(doc.name);
+      const email = cleanEmail(doc.email);
+      if (!name && !email) continue;
+
+      const key = email || `name:${name.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      index += 1;
+      if (index <= skip) continue;
+
+      buffer.push(
+        isTsv ? `${name}\t${email}\n` : `${csvCell(name)},${csvCell(email)}\r\n`,
+      );
+      written += 1;
+
+      if (buffer.length >= FLUSH_ROWS) {
+        await flushBuffer();
+      }
+    }
+
+    await flushBuffer();
+    if (!res.writableEnded) {
+      res.end();
+    }
   } catch (error) {
-    sendJson(res, 500, {
-      error: error instanceof Error ? error.message : "Failed to export CSV",
-    });
+    if (!res.headersSent) {
+      sendJson(res, 500, {
+        error: error instanceof Error ? error.message : "Failed to export data",
+      });
+    } else if (!res.writableEnded) {
+      res.end();
+    }
   }
 };
