@@ -46,6 +46,10 @@ module.exports = async function handler(req, res) {
 
     const isDateMode = mode === "date" || Boolean(startDate || endDate);
 
+    // dedupe=0 → stream every raw row (all data, no skipping duplicates)
+    // dedupe=1 (default) → skip rows with the same email/name key
+    const doDedupe = url.searchParams.get("dedupe") !== "0";
+
     let filter;
     let skip = 0;
     let maxRows = Number.POSITIVE_INFINITY;
@@ -106,7 +110,7 @@ module.exports = async function handler(req, res) {
     }
 
     const FLUSH_ROWS = 1000;
-    const seen = new Set();
+    const seen = doDedupe ? new Set() : null;
     let index = 0;
     let written = 0;
 
@@ -133,9 +137,11 @@ module.exports = async function handler(req, res) {
       const email = cleanEmail(doc.email);
       if (!name && !email) continue;
 
-      const key = email || `name:${name.toLowerCase()}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
+      if (seen) {
+        const key = email || `name:${name.toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+      }
 
       index += 1;
       if (index <= skip) continue;

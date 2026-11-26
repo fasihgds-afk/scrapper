@@ -34,6 +34,8 @@ type ExportQuery = {
   limit?: string;
   from?: string;
   to?: string;
+  /** Pass dedupe=0 to skip email-deduplication and stream every raw row */
+  dedupe?: string;
 };
 
 function resolveExportParams(query: ExportQuery, ext: "csv" | "tsv") {
@@ -116,8 +118,12 @@ async function streamExportResponse(
     buffer.push(`\uFEFF${csvCell("Name")},${csvCell("Email")}\r\n`);
   }
 
+  // dedupe=0 → stream every raw row (all data, no skipping duplicates)
+  // dedupe=1 (default) → skip rows with the same email/name key
+  const doDedupe = query.dedupe !== "0";
+
   const FLUSH_ROWS = 1000;
-  const seen = new Set<string>();
+  const seen = doDedupe ? new Set<string>() : null;
   let index = 0;
   let written = 0;
 
@@ -144,10 +150,12 @@ async function streamExportResponse(
       const email = cleanEmail(row.email);
       if (!name && !email) continue;
 
-      // Dedupe on email when present; otherwise name-based key
-      const key = email || `name:${name.toLowerCase()}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
+      if (seen) {
+        // Dedupe on email when present; otherwise name-based key
+        const key = email || `name:${name.toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+      }
 
       index += 1;
       if (index <= skip) continue;

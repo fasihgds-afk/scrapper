@@ -1103,6 +1103,9 @@
       <button type="button" class="btn-line" id="refreshBtn">
         <span class="btn-label">Refresh</span>
       </button>
+      <button type="button" class="btn-line" id="copyAllBtn" title="Copy ALL matching contacts to clipboard">
+        <span class="btn-label">Copy All</span>
+      </button>
       <button type="button" class="btn-solid" id="exportBtn">Export</button>
     </div>
 
@@ -1288,6 +1291,7 @@
       exportStartDate: document.getElementById("exportStartDate"),
       exportEndDate: document.getElementById("exportEndDate"),
       exportHint: document.getElementById("exportHint"),
+      copyAllBtn: document.getElementById("copyAllBtn"),
       exportCancel: document.getElementById("exportCancel"),
       exportConfirm: document.getElementById("exportConfirm"),
       exportCopy: document.getElementById("exportCopy"),
@@ -1661,7 +1665,7 @@
       return `~${mins}m ${secs}s left`;
     }
 
-    async function streamCopyToClipboard({ url, expectedTotal, title, triggerBtn }) {
+    async function streamCopyToClipboard({ url, expectedTotal, title, triggerBtn, inModal = true }) {
       if (copyAbortCtrl) {
         try { copyAbortCtrl.abort(); } catch { }
       }
@@ -1767,7 +1771,10 @@
 
         const copied = await writeClipboardWithFallback(text);
         if (copied) {
-          closeExportModal();
+          // Only close the modal if the trigger is inside it
+          if (el.exportModal.classList.contains("open")) {
+            closeExportModal();
+          }
           showToast(`Copied ${rows.toLocaleString()} contacts (Name + Email)`, {
             spinning: false,
           });
@@ -1881,10 +1888,10 @@
         return;
       }
 
-      // Count mode
+      // Count mode — Copy All: dedupe=0 → every raw DB row for the current filter
       if (forceAll) {
         const total = state.total || 0;
-        const url = `/records/export.tsv${queryString({ limit: "all" })}`;
+        const url = `/records/export.tsv${queryString({ limit: "all", dedupe: "0" })}`;
         await streamCopyToClipboard({
           url,
           expectedTotal: total,
@@ -2132,6 +2139,25 @@
     });
 
     el.refreshBtn.addEventListener("click", () => refresh().catch(showError));
+
+    // Toolbar Copy All — no modal, streams ALL raw DB rows for the current filter
+    el.copyAllBtn.addEventListener("click", () => {
+      const total = state.total || 0;
+      const url = `/records/export.tsv${queryString({ limit: "all", dedupe: "0" })}`;
+      streamCopyToClipboard({
+        url,
+        expectedTotal: total,
+        title: total > 0
+          ? `Copying all ${total.toLocaleString()} contacts…`
+          : "Copying all contacts…",
+        triggerBtn: el.copyAllBtn,
+      }).catch((err) => {
+        showToast(err.message || "Copy failed", { spinning: false });
+        hideToast(2400);
+        resetCopyProgress();
+        setButtonLoading(el.copyAllBtn, false);
+      });
+    });
 
     el.liveToggle.addEventListener("click", () => {
       setLive(!state.live);
